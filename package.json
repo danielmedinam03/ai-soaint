@@ -1,0 +1,62 @@
+{
+  "name": "ai-soaint",
+  "displayName": "gemini-soaint",
+  "description": "Esta es una extension que interactua con un modelo Gemini para el desarrollo de codigo",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:ai-soaint.helloWorld",
+    "onCommand:mi-extension-vscode.showInputBox",
+    "onView:tuExtensionInputView"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ai-soaint.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "mi-extension-vscode.showInputBox",
+        "title": "Mostrar cuadro de entrada"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tuExtensionViewContainer",
+          "title": "Mi Extensión",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "tuExtensionViewContainer": [
+        {
+          "type": "webview",
+          "id": "tuExtensionInputView",
+          "name": "Entrada de Usuario"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.91.0",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "20.x",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.4.0"
+  }
+}
