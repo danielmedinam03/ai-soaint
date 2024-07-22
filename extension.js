@@ -1,4 +1,5 @@
 const vscode = require('vscode');
+const axios = require('axios');
 
 function activate(context) {
     const provider = new ChatViewProvider(context.extensionUri);
@@ -19,7 +20,7 @@ class ChatViewProvider {
         this._view = webviewView;
 
         webviewView.webview.options = {
-            enableScripts: true,
+            enableScripts: true, 
             localResourceRoots: [
                 this._extensionUri
             ]
@@ -27,13 +28,18 @@ class ChatViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        webviewView.webview.onDidReceiveMessage(data => {
+        webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
                 case 'userInput':
                     this._view.webview.postMessage({ type: 'addMessage', value: data.value, sender: 'user' });
-                    setTimeout(() => {
-                        this._view.webview.postMessage({ type: 'addMessage', value: `Recibido: ${data.value}`, sender: 'bot' });
-                    }, 1000);
+                    try {
+                        const response = await axios.get('http://colormind.io/list/');
+                        const botMessage = `${JSON.stringify(response.data, null, 2)}`;
+                        this._view.webview.postMessage({ type: 'addMessage', value: botMessage, sender: 'bot' });
+                    } catch (error) {
+                        const errorMessage = `Error: ${error.message}`;
+                        this._view.webview.postMessage({ type: 'addMessage', value: errorMessage, sender: 'bot' });
+                    }
                     break;
             }
         });
@@ -49,7 +55,7 @@ class ChatViewProvider {
             <style>
                 body { font-family: Arial, sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; background-color: #f9f9f9; }
                 #chat-container { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; padding: 10px; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
-                .message { margin-bottom: 10px; padding: 10px; border-radius: 10px; max-width: 80%; color: black; }
+                .message { margin-bottom: 10px; padding: 10px; border-radius: 10px; max-width: 80%; word-wrap: break-word; white-space: pre-wrap; color: black; }
                 .user { background-color: #DCF8C6; align-self: flex-end; }
                 .bot { background-color: #E5E5EA; align-self: flex-start; }
                 #input-container { display: flex; margin-bottom: 10px; }
