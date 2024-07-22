@@ -33,8 +33,8 @@ class ChatViewProvider {
                 case 'userInput':
                     this._view.webview.postMessage({ type: 'addMessage', value: data.value, sender: 'user' });
                     try {
-                        const response = await axios.get('http://colormind.io/list/');
-                        const botMessage = `${JSON.stringify(response.data, null, 2)}`;
+                        const response = await axios.post('http://127.0.0.1:5000/chat', { text: data.value });
+                        const botMessage = response.data.response || JSON.stringify(response.data, null, 2);
                         this._view.webview.postMessage({ type: 'addMessage', value: botMessage, sender: 'bot' });
                     } catch (error) {
                         const errorMessage = `Error: ${error.message}`;
@@ -46,7 +46,8 @@ class ChatViewProvider {
     }
 
     _getHtmlForWebview(webview) {
-        return `<!DOCTYPE html>
+        return `
+        <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
