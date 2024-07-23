@@ -93,7 +93,8 @@ class ChatViewProvider {
                         case 'addMessage':
                             const messageElement = document.createElement('div');
                             messageElement.classList.add('message', message.sender);
-                            messageElement.textContent = message.value;
+                            // Use innerHTML to render HTML content properly
+                            messageElement.innerHTML = message.value;
                             chatContainer.appendChild(messageElement);
                             chatContainer.scrollTop = chatContainer.scrollHeight;
                             break;
