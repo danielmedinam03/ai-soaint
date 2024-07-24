@@ -1,6 +1,6 @@
 const vscode = require('vscode');
 const axios = require('axios');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 function activate(context) {
@@ -32,17 +32,17 @@ function activate(context) {
 
 async function getProjectContent(dir, progress) {
     let result = '';
-    const list = fs.readdirSync(dir);
+    const list = await fs.readdir(dir);
     for (const file of list) {
         const fullPath = path.join(dir, file);
-        const stat = fs.statSync(fullPath);
-        if (stat && stat.isDirectory()) {
+        const stat = await fs.stat(fullPath);
+        if (stat.isDirectory()) {
             result += `Directory: ${fullPath}\n`;
             result += await getProjectContent(fullPath, progress);
         } else {
             result += `File: ${fullPath}\n`;
             try {
-                const content = fs.readFileSync(fullPath, 'utf8');
+                const content = await fs.readFile(fullPath, 'utf8');
                 result += `Content:\n${content}\n\n`;
             } catch (error) {
                 result += `Error reading file: ${error.message}\n\n`;
@@ -53,6 +53,34 @@ async function getProjectContent(dir, progress) {
     return result;
 }
 
+async function findContentInProject(projectContent, query) {
+    const lines = projectContent.split('\n');
+    let currentFile = '';
+    let content = '';
+    let found = false;
+
+    for (const line of lines) {
+        if (line.startsWith('File: ')) {
+            if (found) break;
+            currentFile = line.substring(6);
+            content = '';
+        } else if (line.startsWith('Content:')) {
+            continue;
+        } else {
+            content += line + '\n';
+        }
+
+        if (content.includes(query)) {
+            found = true;
+        }
+    }
+
+    if (found) {
+        return { file: currentFile, content: content.trim() };
+    }
+    return null;
+}
+
 class ChatViewProvider {
     static viewType = 'tuExtensionInputView';
 
@@ -60,6 +88,7 @@ class ChatViewProvider {
         this._extensionUri = extensionUri;
         this._view = undefined;
         this._projectContent = '';
+        this._conversationHistory = [];
     }
 
     resolveWebviewView(webviewView, context, _token) {
@@ -78,21 +107,54 @@ class ChatViewProvider {
             switch (data.type) {
                 case 'userInput':
                     this._view.webview.postMessage({ type: 'addMessage', value: data.value, sender: 'user' });
+                    this._conversationHistory.push({ sender: 'user', message: data.value });
+                    this._view.webview.postMessage({ type: 'setLoading', value: true });
                     try {
+                        const contextContent = await this.findRelevantContent(data.value);
                         const payload = { 
                             text: data.value,
-                            projectContent: this._projectContent
+                            context: contextContent
                         };
-                        const response = await axios.post('http://127.0.0.1:5000/chat', payload);
+                        const response = await axios.post('http://127.0.0.1:5000/chat', payload, {
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
                         const botMessage = response.data.response || JSON.stringify(response.data, null, 2);
                         this._view.webview.postMessage({ type: 'addMessage', value: botMessage, sender: 'bot' });
+                        this._conversationHistory.push({ sender: 'bot', message: botMessage });
                     } catch (error) {
                         const errorMessage = `Error: ${error.message}`;
                         this._view.webview.postMessage({ type: 'addMessage', value: errorMessage, sender: 'bot' });
+                        this._conversationHistory.push({ sender: 'bot', message: errorMessage });
+                    } finally {
+                        this._view.webview.postMessage({ type: 'setLoading', value: false });
                     }
+                    break;
+                case 'getHistory':
+                    this._view.webview.postMessage({ type: 'loadHistory', history: this._conversationHistory });
                     break;
             }
         });
+    }
+
+    async findRelevantContent(userMessage) {
+        const fileMatch = userMessage.match(/archivo\s+(\S+)/i);
+        const classMatch = userMessage.match(/clase\s+(\S+)/i);
+        const functionMatch = userMessage.match(/función\s+(\S+)/i);
+
+        if (fileMatch) {
+            const result = await findContentInProject(this._projectContent, fileMatch[1]);
+            return result ? `Contenido del archivo ${fileMatch[1]}:\n${result.content}` : '';
+        } else if (classMatch) {
+            const result = await findContentInProject(this._projectContent, `class ${classMatch[1]}`);
+            return result ? `Definición de la clase ${classMatch[1]}:\n${result.content}` : '';
+        } else if (functionMatch) {
+            const result = await findContentInProject(this._projectContent, `def ${functionMatch[1]}`);
+            return result ? `Definición de la función ${functionMatch[1]}:\n${result.content}` : '';
+        }
+
+        return '';
     }
 
     setProjectContent(content) {
@@ -276,15 +338,19 @@ class ChatViewProvider {
                     });
                 }
 
+                function addMessageToUI(message, sender) {
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('message', sender);
+                    messageElement.innerHTML = formatCode(message);
+                    chatContainer.appendChild(messageElement);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+
                 window.addEventListener('message', event => {
                     const message = event.data;
                     switch (message.type) {
                         case 'addMessage':
-                            const messageElement = document.createElement('div');
-                            messageElement.classList.add('message', message.sender);
-                            messageElement.innerHTML = formatCode(message.value);
-                            chatContainer.appendChild(messageElement);
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                            addMessageToUI(message.value, message.sender);
                             break;
                         case 'projectAnalyzed':
                             statusMessage.textContent = 'Proyecto analizado. Puedes comenzar a chatear.';
@@ -296,8 +362,17 @@ class ChatViewProvider {
                             userInput.disabled = message.value;
                             sendButton.disabled = message.value;
                             break;
+                        case 'loadHistory':
+                            chatContainer.innerHTML = '';
+                            message.history.forEach(item => {
+                                addMessageToUI(item.message, item.sender);
+                            });
+                            break;
                     }
                 });
+
+                // Solicitar el historial de la conversación al cargar
+                vscode.postMessage({ type: 'getHistory' });
 
                 // Ajustar el tamaño del contenedor de chat cuando cambia el tamaño de la ventana
                 window.addEventListener('resize', function() {
