@@ -1,8 +1,8 @@
 {
   "name": "ai-soaint",
   "displayName": "gemini-soaint",
-  "description": "Esta es una extension que interactua con un modelo Gemini para el desarrollo de codigo",
-  "version": "0.0.1",
+  "description": "Esta es una extensión que interactúa con un modelo Gemini para el desarrollo de código y análisis completo del proyecto",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -10,27 +10,21 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:ai-soaint.helloWorld",
-    "onCommand:mi-extension-vscode.showInputBox",
     "onView:tuExtensionInputView"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "ai-soaint.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "mi-extension-vscode.showInputBox",
-        "title": "Mostrar cuadro de entrada"
+        "command": "extension.analyzeProject",
+        "title": "Analizar proyecto completo"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "tuExtensionViewContainer",
-          "title": "Mi Extensión",
+          "title": "Gemini Soaint",
           "icon": "media/icon.svg"
         }
       ]
@@ -40,7 +34,7 @@
         {
           "type": "webview",
           "id": "tuExtensionInputView",
-          "name": "Entrada de Usuario"
+          "name": "Chat con Gemini"
         }
       ]
     }
