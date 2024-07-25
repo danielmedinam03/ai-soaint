@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+    <title>Chat con Gemini</title>
+    <style>
+        body {
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-editor-background);
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            
+        }
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .user {
+            align-self: flex-end;
+            background-color: var(--vscode-textLink-activeForeground);
+            color: var(--vscode-input-foreground);
+        }
+        .bot {
+            align-self: flex-start;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-input-border);
+        }
+        #input-container {
+            display: flex;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+            border-top: 1px solid var(--vscode-input-border);
+        }
+        #userInput {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: var(--vscode-font-size);
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+        }
+        #sendButton {
+            margin-left: 10px;
+            padding: 10px 20px;
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+        #statusMessage {
+            padding: 10px;
+            font-style: italic;
+            background-color: var(--vscode-editorInfo-background);
+            color: var(--vscode-editorInfo-foreground);
+        }
+        pre {
+            background-color: var(--vscode-textBlockQuote-background);
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+        code {
+            font-family: var(--vscode-editor-font-family);
+        }
+    </style>
+</head>
+<body>
+    <div id="statusMessage">Proyecto analizado. Puedes comenzar a chatear.</div>
+    <div id="chat-container"></div>
+    <div id="input-container">
+        <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
+        <button id="sendButton">Enviar</button>
+    </div>
+    <script nonce="${nonce}">
+        const vscode = acquireVsCodeApi();
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const statusMessage = document.getElementById('statusMessage');
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message) {
+                vscode.postMessage({
+                    type: 'userInput',
+                    value: message
+                });
+                userInput.value = '';
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function formatCode(text) {
+            const codeBlockRegex = /\`\`\`([\s\S]*?)\`\`\`/g;
+            return text.replace(codeBlockRegex, function(match, code) {
+                return '<pre><code>' + code.trim() + '</code></pre>';
+            });
+        }
+
+        function addMessageToUI(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender);
+            messageElement.innerHTML = formatCode(message);
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.type) {
+                case 'addMessage':
+                    addMessageToUI(message.value, message.sender);
+                    break;
+                case 'projectAnalyzed':
+                    statusMessage.textContent = 'Proyecto analizado. Puedes comenzar a chatear.';
+                    userInput.disabled = false;
+                    sendButton.disabled = false;
+                    break;
+                case 'loadHistory':
+                    chatContainer.innerHTML = '';
+                    message.history.forEach(item => {
+                        addMessageToUI(item.message, item.sender);
+                    });
+                    break;
+            }
+        });
+
+        vscode.postMessage({ type: 'getHistory' });
+    </script>
+</body>
+</html>

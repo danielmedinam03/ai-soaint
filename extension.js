@@ -1,308 +1,343 @@
-const vscode = require('vscode');
-const axios = require('axios');
-const fs = require('fs').promises;
-const path = require('path');
+const vscode = require("vscode");
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 
 function activate(context) {
-    const provider = new ChatViewProvider(context.extensionUri);
+  const provider = new ChatViewProvider(context.extensionUri);
 
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(ChatViewProvider.viewType, provider)
-    );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      ChatViewProvider.viewType,
+      provider
+    )
+  );
 
-    let analyzeProject = vscode.commands.registerCommand('extension.analyzeProject', async () => {
-        const workspaceFolder = vscode.workspace.workspaceFolders[0];
-        if (workspaceFolder) {
-            vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Analizando el proyecto",
-                cancellable: false
-            }, async (progress) => {
-                const projectContent = await getProjectContent(workspaceFolder.uri.fsPath, progress);
-                provider.setProjectContent(projectContent);
-                vscode.window.showInformationMessage('Análisis del proyecto completado.');
-            });
-        } else {
-            vscode.window.showInformationMessage('No hay una carpeta de trabajo abierta.');
-        }
-    });
+  let analyzeProject = vscode.commands.registerCommand(
+    "extension.analyzeProject",
+    async () => {
+      const workspaceFolder = vscode.workspace.workspaceFolders[0];
+      if (workspaceFolder) {
+        vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Analizando el proyecto",
+            cancellable: false,
+          },
+          async (progress) => {
+            const projectContent = await getProjectContent(
+              workspaceFolder.uri.fsPath,
+              progress
+            );
+            provider.setProjectContent(projectContent);
+            vscode.window.showInformationMessage(
+              "Análisis del proyecto completado."
+            );
+          }
+        );
+      } else {
+        vscode.window.showInformationMessage(
+          "No hay una carpeta de trabajo abierta."
+        );
+      }
+    }
+  );
 
-    context.subscriptions.push(analyzeProject);
+  context.subscriptions.push(analyzeProject);
 }
 
 async function getProjectContent(dir, progress) {
-    let result = '';
-    const list = await fs.readdir(dir);
-    for (const file of list) {
-        const fullPath = path.join(dir, file);
-        const stat = await fs.stat(fullPath);
-        if (stat.isDirectory()) {
-            result += `Directory: ${fullPath}\n`;
-            result += await getProjectContent(fullPath, progress);
-        } else {
-            result += `File: ${fullPath}\n`;
-            try {
-                const content = await fs.readFile(fullPath, 'utf8');
-                result += `Content:\n${content}\n\n`;
-            } catch (error) {
-                result += `Error reading file: ${error.message}\n\n`;
-            }
-        }
-        progress.report({ increment: 100 / list.length, message: `Analizando: ${fullPath}` });
+  let result = "";
+  const list = await fs.promises.readdir(dir);
+  for (const file of list) {
+    const fullPath = path.join(dir, file);
+    const stat = await fs.promises.stat(fullPath);
+    if (stat.isDirectory()) {
+      result += `Directory: ${fullPath}\n`;
+      result += await getProjectContent(fullPath, progress);
+    } else {
+      result += `File: ${fullPath}\n`;
+      try {
+        const content = await fs.promises.readFile(fullPath, "utf8");
+        result += `Content:\n${content}\n\n`;
+      } catch (error) {
+        result += `Error reading file: ${error.message}\n\n`;
+      }
     }
-    return result;
+    progress.report({
+      increment: 100 / list.length,
+      message: `Analizando: ${fullPath}`,
+    });
+  }
+  return result;
 }
 
 async function findContentInProject(projectContent, query) {
-    const lines = projectContent.split('\n');
-    let currentFile = '';
-    let content = '';
-    let found = false;
+  const lines = projectContent.split("\n");
+  let currentFile = "";
+  let content = "";
+  let found = false;
 
-    for (const line of lines) {
-        if (line.startsWith('File: ')) {
-            if (found) break;
-            currentFile = line.substring(6);
-            content = '';
-        } else if (line.startsWith('Content:')) {
-            continue;
-        } else {
-            content += line + '\n';
-        }
-
-        if (content.includes(query)) {
-            found = true;
-        }
+  for (const line of lines) {
+    if (line.startsWith("File: ")) {
+      if (found) break;
+      currentFile = line.substring(6);
+      content = "";
+    } else if (line.startsWith("Content:")) {
+      continue;
+    } else {
+      content += line + "\n";
     }
 
-    if (found) {
-        return { file: currentFile, content: content.trim() };
+    if (content.includes(query)) {
+      found = true;
     }
-    return null;
+  }
+
+  if (found) {
+    return { file: currentFile, content: content.trim() };
+  }
+  return null;
 }
 
 class ChatViewProvider {
-    static viewType = 'tuExtensionInputView';
+  static viewType = "tuExtensionInputView";
 
-    constructor(extensionUri) {
-        this._extensionUri = extensionUri;
-        this._view = undefined;
-        this._projectContent = '';
-        this._conversationHistory = [];
+  constructor(extensionUri) {
+    this._extensionUri = extensionUri;
+    this._view = undefined;
+    this._projectContent = "";
+    this._conversationHistory = [];
+  }
+
+  async resolveWebviewView(webviewView, context, _token) {
+    this._view = webviewView;
+
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this._extensionUri],
+    };
+
+    webviewView.webview.html = await this._getHtmlForWebview(
+      webviewView.webview
+    );
+
+    webviewView.webview.onDidReceiveMessage(async (data) => {
+      switch (data.type) {
+        case "userInput":
+          this._view.webview.postMessage({
+            type: "addMessage",
+            value: data.value,
+            sender: "user",
+          });
+          this._conversationHistory.push({
+            sender: "user",
+            message: data.value,
+          });
+          this._view.webview.postMessage({ type: "setLoading", value: true });
+          try {
+            const contextContent = await this.findRelevantContent(data.value);
+            const payload = {
+              text: data.value,
+              context: contextContent,
+            };
+            const response = await axios.post(
+              "http://127.0.0.1:5000/chat",
+              payload,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+            const botMessage =
+              response.data.response || JSON.stringify(response.data, null, 2);
+            this._view.webview.postMessage({
+              type: "addMessage",
+              value: botMessage,
+              sender: "bot",
+            });
+            this._conversationHistory.push({
+              sender: "bot",
+              message: botMessage,
+            });
+          } catch (error) {
+            const errorMessage = `Error: ${error.message}`;
+            this._view.webview.postMessage({
+              type: "addMessage",
+              value: errorMessage,
+              sender: "bot",
+            });
+            this._conversationHistory.push({
+              sender: "bot",
+              message: errorMessage,
+            });
+          } finally {
+            this._view.webview.postMessage({
+              type: "setLoading",
+              value: false,
+            });
+          }
+          break;
+        case "getHistory":
+          this._view.webview.postMessage({
+            type: "loadHistory",
+            history: this._conversationHistory,
+          });
+          break;
+      }
+    });
+  }
+
+  async findRelevantContent(userMessage) {
+    const fileMatch = userMessage.match(/archivo\s+(\S+)/i);
+    const classMatch = userMessage.match(/clase\s+(\S+)/i);
+    const functionMatch = userMessage.match(/función\s+(\S+)/i);
+
+    if (fileMatch) {
+      const result = await findContentInProject(
+        this._projectContent,
+        fileMatch[1]
+      );
+      return result
+        ? `Contenido del archivo ${fileMatch[1]}:\n${result.content}`
+        : "";
+    } else if (classMatch) {
+      const result = await findContentInProject(
+        this._projectContent,
+        `class ${classMatch[1]}`
+      );
+      return result
+        ? `Definición de la clase ${classMatch[1]}:\n${result.content}`
+        : "";
+    } else if (functionMatch) {
+      const result = await findContentInProject(
+        this._projectContent,
+        `def ${functionMatch[1]}`
+      );
+      return result
+        ? `Definición de la función ${functionMatch[1]}:\n${result.content}`
+        : "";
     }
 
-    resolveWebviewView(webviewView, context, _token) {
-        this._view = webviewView;
+    return "";
+  }
 
-        webviewView.webview.options = {
-            enableScripts: true, 
-            localResourceRoots: [
-                this._extensionUri
-            ]
-        };
-
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
-        webviewView.webview.onDidReceiveMessage(async (data) => {
-            switch (data.type) {
-                case 'userInput':
-                    this._view.webview.postMessage({ type: 'addMessage', value: data.value, sender: 'user' });
-                    this._conversationHistory.push({ sender: 'user', message: data.value });
-                    this._view.webview.postMessage({ type: 'setLoading', value: true });
-                    try {
-                        const contextContent = await this.findRelevantContent(data.value);
-                        const payload = { 
-                            text: data.value,
-                            context: contextContent
-                        };
-                        const response = await axios.post('http://127.0.0.1:5000/chat', payload, {
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        const botMessage = response.data.response || JSON.stringify(response.data, null, 2);
-                        this._view.webview.postMessage({ type: 'addMessage', value: botMessage, sender: 'bot' });
-                        this._conversationHistory.push({ sender: 'bot', message: botMessage });
-                    } catch (error) {
-                        const errorMessage = `Error: ${error.message}`;
-                        this._view.webview.postMessage({ type: 'addMessage', value: errorMessage, sender: 'bot' });
-                        this._conversationHistory.push({ sender: 'bot', message: errorMessage });
-                    } finally {
-                        this._view.webview.postMessage({ type: 'setLoading', value: false });
-                    }
-                    break;
-                case 'getHistory':
-                    this._view.webview.postMessage({ type: 'loadHistory', history: this._conversationHistory });
-                    break;
-            }
-        });
+  setProjectContent(content) {
+    this._projectContent = content;
+    if (this._view) {
+      this._view.webview.postMessage({ type: "projectAnalyzed" });
     }
+  }
 
-    async findRelevantContent(userMessage) {
-        const fileMatch = userMessage.match(/archivo\s+(\S+)/i);
-        const classMatch = userMessage.match(/clase\s+(\S+)/i);
-        const functionMatch = userMessage.match(/función\s+(\S+)/i);
-
-        if (fileMatch) {
-            const result = await findContentInProject(this._projectContent, fileMatch[1]);
-            return result ? `Contenido del archivo ${fileMatch[1]}:\n${result.content}` : '';
-        } else if (classMatch) {
-            const result = await findContentInProject(this._projectContent, `class ${classMatch[1]}`);
-            return result ? `Definición de la clase ${classMatch[1]}:\n${result.content}` : '';
-        } else if (functionMatch) {
-            const result = await findContentInProject(this._projectContent, `def ${functionMatch[1]}`);
-            return result ? `Definición de la función ${functionMatch[1]}:\n${result.content}` : '';
-        }
-
-        return '';
-    }
-
-    setProjectContent(content) {
-        this._projectContent = content;
-        if (this._view) {
-            this._view.webview.postMessage({ type: 'projectAnalyzed' });
-        }
-    }
-
-    _getHtmlForWebview(webview) {
-        return `
+  async _getHtmlForWebview(webview) {
+    return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Chat</title>
+            <title>Chat con Gemini</title>
             <style>
-                body { 
-                    font-family: Arial, sans-serif; 
-                    margin: 0; 
-                    padding: 10px; 
-                    display: flex; 
-                    flex-direction: column; 
-                    height: 100vh; 
-                    background-color: #f9f9f9; 
+                :root {
+                    --background-color: #1e1e1e;
+                    --foreground-color: #ffffff;
+                    --user-bg-color: #3a3d41;
+                    --bot-bg-color: #252526;
+                    --border-color: #3a3a3a;
+                    --button-bg-color: #007acc;
+                    --button-hover-bg-color: #005f9e;
                 }
-                #chat-container { 
-                    flex-grow: 1; 
-                    overflow-y: auto; 
-                    margin-bottom: 10px; 
-                    padding: 10px; 
-                    background-color: #fff; 
-                    border: 1px solid #ddd; 
-                    border-radius: 4px; 
+                body {
+                    font-family: var(--vscode-font-family, sans-serif);
+                    font-size: var(--vscode-font-size, 16px);
+                    color: var(--foreground-color);
+                    background-color: var(--background-color);
+                    padding: 0;
+                    margin: 0;
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
                 }
-                .message { 
-                    margin-bottom: 10px; 
-                    padding: 10px; 
-                    border-radius: 10px; 
-                    max-width: 80%; 
-                    word-wrap: break-word; 
-                    white-space: pre-wrap; 
-                    color: black; 
+                #chat-container {
+                    display: flex;
+                    flex-direction: column;
+                    flex-grow: 1;
+                    overflow-y: auto;
+                    padding: 1rem;
+                    background-color: var(--background-color);
                 }
-                .user { 
-                    background-color: #DCF8C6; 
-                    align-self: flex-end; 
-                    margin-left: 20%;
+                .message {
+                    margin-bottom: 1rem;
+                    padding: 0.75rem 1rem;
+                    border-radius: 15px;
+                    max-width: 80%;
+                    word-wrap: break-word;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
                 }
-                .bot { 
-                    background-color: #E5E5EA; 
-                    align-self: flex-start; 
-                    margin-right: 20%;
+                .user {
+                    align-self: flex-end;
+                    background-color: var(--user-bg-color);
+                    color: var(--foreground-color);
                 }
-                #input-container { 
-                    display: flex; 
-                    margin-bottom: 10px; 
+                .bot {
+                    align-self: flex-start;
+                    background-color: var(--bot-bg-color);
+                    border: 1px solid var(--border-color);
                 }
-                #userInput { 
-                    flex-grow: 1; 
-                    padding: 10px; 
-                    font-size: 14px; 
-                    border: 1px solid #ddd; 
-                    border-radius: 4px; 
-                    margin-right: 5px; 
+                #input-container {
+                    display: flex;
+                    padding: 1rem;
+                    background-color: var(--background-color);
+                    border-top: 1px solid var(--border-color);
                 }
-                #sendButton { 
-                    padding: 10px 20px; 
-                    font-size: 14px; 
-                    background-color: #007ACC; 
-                    color: white; 
-                    border: none; 
-                    border-radius: 4px; 
-                    cursor: pointer; 
+                #userInput {
+                    flex-grow: 1;
+                    padding: 0.75rem;
+                    font-size: var(--vscode-font-size);
+                    background-color: var(--bot-bg-color);
+                    color: var(--foreground-color);
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
                 }
-                #sendButton:hover { 
-                    background-color: #005A9E; 
+                #sendButton {
+                    margin-left: 0.5rem;
+                    padding: 0.75rem 1rem;
+                    background-color: var(--button-bg-color);
+                    color: var(--foreground-color);
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: background-color 0.3s;
                 }
-                #statusMessage { 
-                    margin-bottom: 10px; 
-                    font-style: italic; 
+                #sendButton:hover {
+                    background-color: var(--button-hover-bg-color);
                 }
-                #loading { 
-                    display: none; 
-                    text-align: center; 
-                    margin-top: 10px; 
+                #statusMessage {
+                    padding: 1rem;
+                    font-style: italic;
+                    background-color: var(--bot-bg-color);
+                    color: var(--foreground-color);
+                    border-bottom: 1px solid var(--border-color);
                 }
-                .spinner { 
-                    border: 4px solid #f3f3f3; 
-                    border-top: 4px solid #3498db; 
-                    border-radius: 50%; 
-                    width: 20px; 
-                    height: 20px; 
-                    animation: spin 1s linear infinite; 
-                    display: inline-block; 
+                pre {
+                    background-color: var(--bot-bg-color);
+                    padding: 0.75rem;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                    font-size: 0.9em;
                 }
-                @keyframes spin { 
-                    0% { transform: rotate(0deg); } 
-                    100% { transform: rotate(360deg); } 
-                }
-                pre { 
-                    background-color: #f4f4f4; 
-                    padding: 10px; 
-                    border-radius: 5px; 
-                    overflow-x: auto; 
-                    font-size: 12px;
-                }
-                code { 
-                    font-family: 'Courier New', Courier, monospace; 
-                }
-
-                /* Estilos responsivos */
-                @media (max-width: 600px) {
-                    body {
-                        padding: 5px;
-                    }
-                    #chat-container {
-                        padding: 5px;
-                    }
-                    .message {
-                        max-width: 90%;
-                    }
-                    .user {
-                        margin-left: 10%;
-                    }
-                    .bot {
-                        margin-right: 10%;
-                    }
-                    #userInput, #sendButton {
-                        font-size: 12px;
-                    }
-                    pre {
-                        font-size: 10px;
-                    }
+                code {
+                    font-family: var(--vscode-editor-font-family, monospace);
                 }
             </style>
         </head>
         <body>
-            <div id="statusMessage">Ejecute el comando "Analizar proyecto completo" antes de chatear.</div>
+            <div id="statusMessage">Proyecto analizado. Puedes comenzar a chatear.</div>
             <div id="chat-container"></div>
-            <div id="loading">
-                <div class="spinner"></div>
-                <p>Procesando...</p>
-            </div>
             <div id="input-container">
-                <input type="text" id="userInput" placeholder="Escribe algo aquí" disabled>
-                <button id="sendButton" disabled>Enviar</button>
+                <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
+                <button id="sendButton">Enviar</button>
             </div>
             <script>
                 const vscode = acquireVsCodeApi();
@@ -310,7 +345,6 @@ class ChatViewProvider {
                 const userInput = document.getElementById('userInput');
                 const sendButton = document.getElementById('sendButton');
                 const statusMessage = document.getElementById('statusMessage');
-                const loading = document.getElementById('loading');
 
                 function sendMessage() {
                     const message = userInput.value.trim();
@@ -357,11 +391,6 @@ class ChatViewProvider {
                             userInput.disabled = false;
                             sendButton.disabled = false;
                             break;
-                        case 'setLoading':
-                            loading.style.display = message.value ? 'block' : 'none';
-                            userInput.disabled = message.value;
-                            sendButton.disabled = message.value;
-                            break;
                         case 'loadHistory':
                             chatContainer.innerHTML = '';
                             message.history.forEach(item => {
@@ -371,25 +400,27 @@ class ChatViewProvider {
                     }
                 });
 
-                // Solicitar el historial de la conversación al cargar
                 vscode.postMessage({ type: 'getHistory' });
-
-                // Ajustar el tamaño del contenedor de chat cuando cambia el tamaño de la ventana
-                window.addEventListener('resize', function() {
-                    chatContainer.style.height = (window.innerHeight - 150) + 'px';
-                });
-
-                // Inicializar el tamaño del contenedor de chat
-                chatContainer.style.height = (window.innerHeight - 150) + 'px';
             </script>
         </body>
-        </html>`;
+        </html>
+        `;
+  }
+
+  _getNonce() {
+    let text = "";
+    const possible =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
     }
+    return text;
+  }
 }
 
 function deactivate() {}
 
 module.exports = {
-    activate,
-    deactivate
+  activate,
+  deactivate,
 };
