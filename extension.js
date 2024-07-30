@@ -77,27 +77,36 @@ async function findContentInProject(projectContent, query) {
   let currentFile = "";
   let content = "";
   let found = false;
+  let results = [];
 
   for (const line of lines) {
     if (line.startsWith("File: ")) {
-      if (found) break;
+      if (found) {
+        results.push({ file: currentFile, content: content.trim() });
+        found = false;
+        content = "";
+      }
       currentFile = line.substring(6);
-      content = "";
     } else if (line.startsWith("Content:")) {
       continue;
     } else {
       content += line + "\n";
     }
 
-    if (content.includes(query)) {
+    if (content.toLowerCase().includes(query.toLowerCase())) {
       found = true;
     }
   }
 
   if (found) {
-    return { file: currentFile, content: content.trim() };
+    results.push({ file: currentFile, content: content.trim() });
   }
-  return null;
+
+  return results;
+}
+
+function normalizeText(text) {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 class ChatViewProvider {
@@ -185,43 +194,60 @@ class ChatViewProvider {
             history: this._conversationHistory,
           });
           break;
-      }
+      }  
     });
   }
 
   async findRelevantContent(userMessage) {
-    const fileMatch = userMessage.match(/archivo\s+(\S+)/i);
-    const classMatch = userMessage.match(/clase\s+(\S+)/i);
-    const functionMatch = userMessage.match(/función\s+(\S+)/i);
+  userMessage = normalizeText(userMessage);
 
-    if (fileMatch) {
-      const result = await findContentInProject(
-        this._projectContent,
-        fileMatch[1]
-      );
-      return result
-        ? `Contenido del archivo ${fileMatch[1]}:\n${result.content}`
-        : "";
-    } else if (classMatch) {
-      const result = await findContentInProject(
-        this._projectContent,
-        `class ${classMatch[1]}`
-      );
-      return result
-        ? `Definición de la clase ${classMatch[1]}:\n${result.content}`
-        : "";
-    } else if (functionMatch) {
-      const result = await findContentInProject(
-        this._projectContent,
-        `def ${functionMatch[1]}`
-      );
-      return result
-        ? `Definición de la función ${functionMatch[1]}:\n${result.content}`
-        : "";
+  // Expresiones regulares para identificar entidades mencionadas
+  const fileMatch = userMessage.match(/archivo\s+(\S+)/i);
+  const classMatch = userMessage.match(/clase\s+(\S+)/i);
+  const functionMatch = userMessage.match(/(?:funcion|metodo)\s+(\S+)/i);
+
+  let context = "";
+  let searchResults = [];
+
+  // Buscar archivo específico
+  if (fileMatch) {
+    const fileName = fileMatch[1];
+    searchResults = await findContentInProject(this._projectContent, fileName);
+    if (searchResults.length > 0) {
+      context = `Contenido del archivo ${fileName}:\n${searchResults.map(r => r.content).join("\n")}`;
+    } else {
+      context = `No se encontró el archivo ${fileName}.`;
     }
-
-    return "";
   }
+
+  // Buscar clase específica
+  if (classMatch) {
+    const className = classMatch[1];
+    searchResults = await findContentInProject(this._projectContent, `class ${className}`);
+    if (searchResults.length > 0) {
+      context += `Definición de la clase ${className}:\n${searchResults.map(r => r.content).join("\n")}\n`;
+    } else {
+      context += `No se encontró la clase ${className}. `;
+    }
+  }
+
+  // Buscar función o método específico
+  if (functionMatch) {
+    const functionName = functionMatch[1];
+    searchResults = await findContentInProject(this._projectContent, functionName);
+    if (searchResults.length > 0) {
+      context += `Definición de la función/método ${functionName}:\n${searchResults.map(r => r.content).join("\n")}`;
+    } else {
+      context += `No se encontró la función/método ${functionName}.`;
+    }
+  }
+
+  if (!context) {
+    context = "No se encontró ningún archivo, clase o función/método relevante en el mensaje.";
+  }
+
+  return context;
+}
 
   setProjectContent(content) {
     this._projectContent = content;
@@ -344,7 +370,6 @@ class ChatViewProvider {
                 const chatContainer = document.getElementById('chat-container');
                 const userInput = document.getElementById('userInput');
                 const sendButton = document.getElementById('sendButton');
-                const statusMessage = document.getElementById('statusMessage');
 
                 function sendMessage() {
                     const message = userInput.value.trim();
