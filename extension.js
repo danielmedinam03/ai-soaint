@@ -75,55 +75,144 @@ class ChatViewProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Chat</title>
             <style>
-                body { font-family: Arial, sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; background-color: #f9f9f9; }
-                #chat-container { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; padding: 10px; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
-                .message { margin-bottom: 10px; padding: 10px; border-radius: 10px; max-width: 80%; word-wrap: break-word; white-space: pre-wrap; color: black; }
-                .user { background-color: #DCF8C6; align-self: flex-end; }
-                .bot { background-color: #E5E5EA; align-self: flex-start; }
-                #input-container { display: flex; margin-bottom: 10px; }
-                #userInput { flex-grow: 1; padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; margin-right: 5px; }
-                #sendButton { padding: 10px 20px; font-size: 14px; background-color: #007ACC; color: white; border: none; border-radius: 4px; cursor: pointer; }
-                #sendButton:hover { background-color: #005A9E; }
+                :root {
+                    --background-color: #1e1e1e;
+                    --foreground-color: #ffffff;
+                    --user-bg-color: #3a3d41;
+                    --bot-bg-color: #252526;
+                    --border-color: #3a3a3a;
+                    --button-bg-color: #007acc;
+                    --button-hover-bg-color: #005f9e;
+                }
+                body {
+                    font-family: var(--vscode-font-family, sans-serif);
+                    font-size: var(--vscode-font-size, 16px);
+                    color: var(--foreground-color);
+                    background-color: var(--background-color);
+                    padding: 0;
+                    margin: 0;
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
+                }
+                #chat-container {
+                    display: flex;
+                    flex-direction: column;
+                    flex-grow: 1;
+                    overflow-y: auto;
+                    padding: 1rem;
+                    background-color: var(--background-color);
+                }
+                .message {
+                    margin-bottom: 1rem;
+                    padding: 0.75rem 1rem;
+                    border-radius: 15px;
+                    max-width: 80%;
+                    word-wrap: break-word;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                }
+                .user {
+                    align-self: flex-end;
+                    background-color: var(--user-bg-color);
+                    color: var(--foreground-color);
+                }
+                .bot {
+                    align-self: flex-start;
+                    background-color: var(--bot-bg-color);
+                    border: 1px solid var(--border-color);
+                }
+                #input-container {
+                    display: flex;
+                    padding: 1rem;
+                    background-color: var(--background-color);
+                    border-top: 1px solid var(--border-color);
+                }
+                #userInput {
+                    flex-grow: 1;
+                    padding: 0.75rem;
+                    font-size: var(--vscode-font-size);
+                    background-color: var(--bot-bg-color);
+                    color: var(--foreground-color);
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                }
+                #sendButton {
+                    margin-left: 0.5rem;
+                    padding: 0.75rem 1rem;
+                    background-color: var(--button-bg-color);
+                    color: var(--foreground-color);
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: background-color 0.3s;
+                }
+                #sendButton:hover {
+                    background-color: var(--button-hover-bg-color);
+                }
+                #statusMessage {
+                    padding: 1rem;
+                    font-style: italic;
+                    background-color: var(--bot-bg-color);
+                    color: var(--foreground-color);
+                    border-bottom: 1px solid var(--border-color);
+                }
+                pre {
+                    background-color: var(--bot-bg-color);
+                    padding: 0.75rem;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                    font-size: 0.9em;
+                }
+                code {
+                    font-family: var(--vscode-editor-font-family, monospace);
+                }
             </style>
         </head>
         <body>
             <div id="chat-container"></div>
             <div id="input-container">
-                <input type="text" id="userInput" placeholder="Escribe algo aquí">
-                <button id="sendButton" onclick="sendMessage()">Enviar</button>
+                <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
+                <button id="sendButton">Enviar</button>
             </div>
             <script>
                 const vscode = acquireVsCodeApi();
                 const chatContainer = document.getElementById('chat-container');
+                const userInput = document.getElementById('userInput');
+                const sendButton = document.getElementById('sendButton');
 
                 function sendMessage() {
-                    const input = document.getElementById('userInput');
-                    const message = input.value.trim();
+                    const message = userInput.value.trim();
                     if (message) {
                         vscode.postMessage({
                             type: 'userInput',
                             value: message
                         });
-                        input.value = '';
+                        userInput.value = '';
                     }
+                }
+
+                sendButton.addEventListener('click', sendMessage);
+
+                userInput.addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+
+                function addMessageToUI(message, sender) {
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('message', sender);
+                    messageElement.textContent = message;
+                    chatContainer.appendChild(messageElement);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
 
                 window.addEventListener('message', event => {
                     const message = event.data;
                     switch (message.type) {
                         case 'addMessage':
-                            const messageElement = document.createElement('div');
-                            messageElement.classList.add('message', message.sender);
-                            messageElement.textContent = message.value;
-                            chatContainer.appendChild(messageElement);
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                            addMessageToUI(message.value, message.sender);
                             break;
-                    }
-                });
-
-                document.getElementById('userInput').addEventListener('keypress', function(event) {
-                    if (event.key === 'Enter') {
-                        sendMessage();
                     }
                 });
             </script>
