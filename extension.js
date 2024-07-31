@@ -3,7 +3,8 @@ const axios = require('axios');
 const path = require('path');
 
 function activate(context) {
-    const provider = new ChatViewProvider(context.extensionUri);
+    console.log('Activating extension');
+    const provider = new ChatViewProvider(context.extensionUri, context.globalState);
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ChatViewProvider.viewType, provider)
@@ -13,43 +14,79 @@ function activate(context) {
 class ChatViewProvider {
     static viewType = 'tuExtensionInputView';
 
-    constructor(extensionUri) {
+    constructor(extensionUri, globalState) {
         this._extensionUri = extensionUri;
         this._view = undefined;
+        this._globalState = globalState;
+        this._messages = this._globalState.get('chatMessages', []);
+        console.log('ChatViewProvider constructed', this._messages);
     }
 
     resolveWebviewView(webviewView, context, _token) {
+        console.log('Resolving webview view');
         this._view = webviewView;
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [
-                this._extensionUri
-            ]
+            localResourceRoots: [this._extensionUri]
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        webviewView.webview.onDidReceiveMessage(async (data) => {
-            switch (data.type) {
-                case 'userInput':
-                    this._view.webview.postMessage({ type: 'addMessage', value: data.value, sender: 'user' });
-                    try {
-                        const currentFileContent = await this._getCurrentFileContent();
-                        const payload = {
-                            text: data.value,
-                            context: currentFileContent ? JSON.stringify(currentFileContent) : ''
-                        };
-                        const response = await axios.post('http://127.0.0.1:5000/chat', payload);
-                        const botMessage = response.data.response || JSON.stringify(response.data, null, 2);
-                        this._view.webview.postMessage({ type: 'addMessage', value: botMessage, sender: 'bot' });
-                    } catch (error) {
-                        const errorMessage = `Error: ${error.message}`;
-                        this._view.webview.postMessage({ type: 'addMessage', value: errorMessage, sender: 'bot' });
-                    }
-                    break;
+        webviewView.webview.onDidReceiveMessage(message => {
+            if (message.type === 'viewReady') {
+                console.log('View ready, restoring messages');
+                this._restoreMessages();
+            } else if (message.type === 'userInput') {
+                this._handleUserInput(message.value);
             }
         });
+
+        // Mantener la vista
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                console.log('View became visible, restoring messages');
+                this._restoreMessages();
+            }
+        });
+    }
+
+    _restoreMessages() {
+        console.log('Restoring messages', this._messages);
+        this._messages.forEach(message => {
+            this._view.webview.postMessage(message);
+        });
+    }
+
+    async _handleUserInput(input) {
+        console.log('Handling user input', input);
+        const userMessage = { type: 'addMessage', value: input, sender: 'user' };
+        this._addMessage(userMessage);
+
+        try {
+            const currentFileContent = await this._getCurrentFileContent();
+            const payload = {
+                text: input,
+                context: currentFileContent ? JSON.stringify(currentFileContent) : ''
+            };
+            const response = await axios.post('http://127.0.0.1:5000/chat', payload);
+            const botMessage = { type: 'addMessage', value: response.data.response || JSON.stringify(response.data, null, 2), sender: 'bot' };
+            this._addMessage(botMessage);
+        } catch (error) {
+            const errorMessage = { type: 'addMessage', value: `Error: ${error.message}`, sender: 'bot' };
+            this._addMessage(errorMessage);
+        }
+    }
+
+    _addMessage(message) {
+        this._messages.push(message);
+        this._view.webview.postMessage(message);
+        this._saveMessages();
+    }
+
+    _saveMessages() {
+        console.log('Saving messages', this._messages);
+        this._globalState.update('chatMessages', this._messages);
     }
 
     async _getCurrentFileContent() {
@@ -58,10 +95,7 @@ class ChatViewProvider {
             const document = editor.document;
             const fileContent = document.getText();
             const fileName = path.basename(document.fileName);
-            return {
-                file: fileName,
-                content: fileContent
-            };
+            return { file: fileName, content: fileContent };
         }
         return null;
     }
@@ -180,6 +214,9 @@ class ChatViewProvider {
                 const userInput = document.getElementById('userInput');
                 const sendButton = document.getElementById('sendButton');
 
+                // Notificar que la vista está lista
+                vscode.postMessage({ type: 'viewReady' });
+
                 function sendMessage() {
                     const message = userInput.value.trim();
                     if (message) {
@@ -192,7 +229,6 @@ class ChatViewProvider {
                 }
 
                 sendButton.addEventListener('click', sendMessage);
-
                 userInput.addEventListener('keypress', function(event) {
                     if (event.key === 'Enter') {
                         sendMessage();
