@@ -40,7 +40,7 @@ class ChatViewProvider {
         this._extensionUri = extensionUri;
         this._view = undefined;
         this._globalState = globalState;
-        this._messages = this._globalState.get('chatMessages', []); // Recuperar mensajes guardados
+        this._messages = [];
         console.log('ChatViewProvider constructed', this._messages);
     }
 
@@ -63,25 +63,13 @@ class ChatViewProvider {
                 this._handleUserInput(message.value);
             }
         });
-
-        webviewView.onDidChangeVisibility(() => {
-            if (webviewView.visible) {
-                console.log('View became visible, restoring messages');
-                this._restoreMessages();
-            }
-        });
     }
 
     _restoreMessages() {
-        if (this._messagesRestored) {
-            return; // Evitar duplicar mensajes
-        }
-
-        console.log('Restoring messages', this._messages);
-        this._messages.forEach(message => {
-            this._view.webview.postMessage(message);
-        });
-        this._messagesRestored = true;
+       console.log('Restoring messages', this._messages);
+       this._messages.forEach(message => {
+           this._view.webview.postMessage(message);
+       });
     }
 
     async _handleUserInput(input) {
@@ -107,11 +95,6 @@ class ChatViewProvider {
     _addMessage(message) {
         this._messages.push(message);
         this._view.webview.postMessage(message);
-        this._saveMessages(); // Guardar mensajes
-    }
-
-    _saveMessages() {
-        this._globalState.update('chatMessages', this._messages);
     }
 
     async _getCurrentFileContent() {
