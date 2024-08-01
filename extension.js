@@ -2,13 +2,35 @@ const vscode = require('vscode');
 const axios = require('axios');
 const path = require('path');
 
-function activate(context) {
+async function resetConversation() {
+    try {
+        const response = await axios.post('http://127.0.0.1:5000/reset');
+        console.log('Conversation reset:', response.data.message);
+        vscode.window.showInformationMessage('Conversación reseteada exitosamente.');
+    } catch (error) {
+        console.error('Failed to reset conversation:', error);
+        vscode.window.showErrorMessage('No se pudo resetear la conversación.');
+    }
+}
+
+async function activate(context) {
     console.log('Activating extension');
+
+    // Resetear la conversación al activar la extensión
+    await resetConversation();
+
     const provider = new ChatViewProvider(context.extensionUri, context.globalState);
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ChatViewProvider.viewType, provider)
     );
+
+    // Registrar el comando para resetear la conversación
+    let disposable = vscode.commands.registerCommand('extension.resetConversation', async () => {
+        await resetConversation();
+    });
+
+    context.subscriptions.push(disposable);
 }
 
 class ChatViewProvider {
@@ -18,7 +40,7 @@ class ChatViewProvider {
         this._extensionUri = extensionUri;
         this._view = undefined;
         this._globalState = globalState;
-        this._messages = this._globalState.get('chatMessages', []);
+        this._messages = this._globalState.get('chatMessages', []); // Recuperar mensajes guardados
         console.log('ChatViewProvider constructed', this._messages);
     }
 
@@ -42,7 +64,6 @@ class ChatViewProvider {
             }
         });
 
-        // Mantener la vista
         webviewView.onDidChangeVisibility(() => {
             if (webviewView.visible) {
                 console.log('View became visible, restoring messages');
@@ -52,10 +73,15 @@ class ChatViewProvider {
     }
 
     _restoreMessages() {
+        if (this._messagesRestored) {
+            return; // Evitar duplicar mensajes
+        }
+
         console.log('Restoring messages', this._messages);
         this._messages.forEach(message => {
             this._view.webview.postMessage(message);
         });
+        this._messagesRestored = true;
     }
 
     async _handleUserInput(input) {
@@ -81,11 +107,10 @@ class ChatViewProvider {
     _addMessage(message) {
         this._messages.push(message);
         this._view.webview.postMessage(message);
-        this._saveMessages();
+        this._saveMessages(); // Guardar mensajes
     }
 
     _saveMessages() {
-        console.log('Saving messages', this._messages);
         this._globalState.update('chatMessages', this._messages);
     }
 
@@ -109,20 +134,11 @@ class ChatViewProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Chat</title>
             <style>
-                :root {
-                    --background-color: #1e1e1e;
-                    --foreground-color: #ffffff;
-                    --user-bg-color: #3a3d41;
-                    --bot-bg-color: #252526;
-                    --border-color: #3a3a3a;
-                    --button-bg-color: #007acc;
-                    --button-hover-bg-color: #005f9e;
-                }
                 body {
-                    font-family: var(--vscode-font-family, sans-serif);
-                    font-size: var(--vscode-font-size, 16px);
-                    color: var(--foreground-color);
-                    background-color: var(--background-color);
+                    font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+                    font-size: var(--vscode-font-size, 14px);
+                    color: var(--vscode-foreground);
+                    background-color: var(--vscode-editor-background);
                     padding: 0;
                     margin: 0;
                     display: flex;
@@ -134,71 +150,70 @@ class ChatViewProvider {
                     flex-direction: column;
                     flex-grow: 1;
                     overflow-y: auto;
-                    padding: 1rem;
-                    background-color: var(--background-color);
+                    padding: 10px;
+                    border-bottom: 1px solid var(--vscode-editorGroup-border);
+                    background-color: var(--vscode-editor-background);
                 }
                 .message {
-                    margin-bottom: 1rem;
-                    padding: 0.75rem 1rem;
-                    border-radius: 15px;
-                    max-width: 80%;
+                    margin-bottom: 10px;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                    max-width: 75%;
                     word-wrap: break-word;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
                 }
                 .user {
                     align-self: flex-end;
-                    background-color: var(--user-bg-color);
-                    color: var(--foreground-color);
+                    background-color: var(--vscode-button-secondaryBackground);
+                    color: var(--vscode-button-secondaryForeground);
                 }
                 .bot {
                     align-self: flex-start;
-                    background-color: var(--bot-bg-color);
-                    border: 1px solid var(--border-color);
+                    background-color: var(--vscode-editor-inactiveSelectionBackground);
+                    color: var(--vscode-editor-foreground);
                 }
                 #input-container {
                     display: flex;
-                    padding: 1rem;
-                    background-color: var(--background-color);
-                    border-top: 1px solid var(--border-color);
+                    align-items: center;
+                    padding: 10px;
+                    background-color: var(--vscode-editor-background);
+                    border-top: 1px solid var(--vscode-editorGroup-border);
                 }
                 #userInput {
                     flex-grow: 1;
-                    padding: 0.75rem;
+                    padding: 10px;
                     font-size: var(--vscode-font-size);
-                    background-color: var(--bot-bg-color);
-                    color: var(--foreground-color);
-                    border: 1px solid var(--border-color);
-                    border-radius: 4px;
+                    background-color: var(--vscode-input-background);
+                    color: var(--vscode-input-foreground);
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 5px;
+                    outline: none;
+                    box-sizing: border-box;
                 }
                 #sendButton {
-                    margin-left: 0.5rem;
-                    padding: 0.75rem 1rem;
-                    background-color: var(--button-bg-color);
-                    color: var(--foreground-color);
+                    margin-left: 10px;
+                    padding: 10px 20px;
+                    font-size: var(--vscode-font-size);
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
                     border: none;
-                    border-radius: 4px;
+                    border-radius: 5px;
                     cursor: pointer;
                     transition: background-color 0.3s;
                 }
                 #sendButton:hover {
-                    background-color: var(--button-hover-bg-color);
+                    background-color: var(--vscode-button-hoverBackground);
                 }
-                #statusMessage {
-                    padding: 1rem;
-                    font-style: italic;
-                    background-color: var(--bot-bg-color);
-                    color: var(--foreground-color);
-                    border-bottom: 1px solid var(--border-color);
+                #loading {
+                    display: none;
+                    align-self: center;
+                    margin: 20px 0;
                 }
-                pre {
-                    background-color: var(--bot-bg-color);
-                    padding: 0.75rem;
-                    border-radius: 5px;
-                    overflow-x: auto;
-                    font-size: 0.9em;
+                #loading svg {
+                    animation: rotate 1s linear infinite;
                 }
-                code {
-                    font-family: var(--vscode-editor-font-family, monospace);
+                @keyframes rotate {
+                    100% { transform: rotate(360deg); }
                 }
             </style>
         </head>
@@ -208,18 +223,32 @@ class ChatViewProvider {
                 <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
                 <button id="sendButton">Enviar</button>
             </div>
+            <div id="loading">
+                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" fill="#007acc">
+                    <circle cx="20" cy="20" r="18" stroke-width="4" stroke-opacity="0.5" stroke-dasharray="28.274333882308138 28.274333882308138" stroke-linecap="round">
+                        <animateTransform
+                            attributeName="transform"
+                            type="rotate"
+                            from="0 20 20"
+                            to="360 20 20"
+                            dur="1s"
+                            repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            </div>
             <script>
                 const vscode = acquireVsCodeApi();
                 const chatContainer = document.getElementById('chat-container');
                 const userInput = document.getElementById('userInput');
                 const sendButton = document.getElementById('sendButton');
-
-                // Notificar que la vista está lista
+                const loading = document.getElementById('loading');
+    
                 vscode.postMessage({ type: 'viewReady' });
-
+    
                 function sendMessage() {
                     const message = userInput.value.trim();
                     if (message) {
+                        loading.style.display = 'block'; // Mostrar el indicador de carga
                         vscode.postMessage({
                             type: 'userInput',
                             value: message
@@ -227,22 +256,23 @@ class ChatViewProvider {
                         userInput.value = '';
                     }
                 }
-
+    
                 sendButton.addEventListener('click', sendMessage);
                 userInput.addEventListener('keypress', function(event) {
                     if (event.key === 'Enter') {
                         sendMessage();
                     }
                 });
-
+    
                 function addMessageToUI(message, sender) {
+                    loading.style.display = 'none'; // Ocultar el indicador de carga
                     const messageElement = document.createElement('div');
                     messageElement.classList.add('message', sender);
                     messageElement.textContent = message;
                     chatContainer.appendChild(messageElement);
                     chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
-
+    
                 window.addEventListener('message', event => {
                     const message = event.data;
                     switch (message.type) {
@@ -254,10 +284,12 @@ class ChatViewProvider {
             </script>
         </body>
         </html>`;
-    }
+    }    
 }
 
-function deactivate() {}
+function deactivate() {
+    console.log('Extension deactivated');
+}
 
 module.exports = {
     activate,

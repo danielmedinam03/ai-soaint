@@ -16,8 +16,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.analyzeProject",
-        "title": "Analizar proyecto completo"
+        "command": "extension.resetConversation",
+        "title": "Resetear Conversación"
       }
     ],
     "viewsContainers": {
