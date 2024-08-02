@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
 
 async function resetConversation() {
     try {
@@ -109,165 +110,9 @@ class ChatViewProvider {
     }
 
     _getHtmlForWebview(webview) {
-        return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Chat</title>
-            <style>
-                body {
-                    font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
-                    font-size: var(--vscode-font-size, 14px);
-                    color: var(--vscode-foreground);
-                    background-color: var(--vscode-editor-background);
-                    padding: 0;
-                    margin: 0;
-                    display: flex;
-                    flex-direction: column;
-                    height: 100vh;
-                }
-                #chat-container {
-                    display: flex;
-                    flex-direction: column;
-                    flex-grow: 1;
-                    overflow-y: auto;
-                    padding: 10px;
-                    border-bottom: 1px solid var(--vscode-editorGroup-border);
-                    background-color: var(--vscode-editor-background);
-                }
-                .message {
-                    margin-bottom: 10px;
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    max-width: 75%;
-                    word-wrap: break-word;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                }
-                .user {
-                    align-self: flex-end;
-                    background-color: var(--vscode-button-secondaryBackground);
-                    color: var(--vscode-button-secondaryForeground);
-                }
-                .bot {
-                    align-self: flex-start;
-                    background-color: var(--vscode-editor-inactiveSelectionBackground);
-                    color: var(--vscode-editor-foreground);
-                }
-                #input-container {
-                    display: flex;
-                    align-items: center;
-                    padding: 10px;
-                    background-color: var(--vscode-editor-background);
-                    border-top: 1px solid var(--vscode-editorGroup-border);
-                }
-                #userInput {
-                    flex-grow: 1;
-                    padding: 10px;
-                    font-size: var(--vscode-font-size);
-                    background-color: var(--vscode-input-background);
-                    color: var(--vscode-input-foreground);
-                    border: 1px solid var(--vscode-input-border);
-                    border-radius: 5px;
-                    outline: none;
-                    box-sizing: border-box;
-                }
-                #sendButton {
-                    margin-left: 10px;
-                    padding: 10px 20px;
-                    font-size: var(--vscode-font-size);
-                    background-color: var(--vscode-button-background);
-                    color: var(--vscode-button-foreground);
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    transition: background-color 0.3s;
-                }
-                #sendButton:hover {
-                    background-color: var(--vscode-button-hoverBackground);
-                }
-                #loading {
-                    display: none;
-                    align-self: center;
-                    margin: 20px 0;
-                }
-                #loading svg {
-                    animation: rotate 1s linear infinite;
-                }
-                @keyframes rotate {
-                    100% { transform: rotate(360deg); }
-                }
-            </style>
-        </head>
-        <body>
-            <div id="chat-container"></div>
-            <div id="input-container">
-                <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
-                <button id="sendButton">Enviar</button>
-            </div>
-            <div id="loading">
-                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" fill="#007acc">
-                    <circle cx="20" cy="20" r="18" stroke-width="4" stroke-opacity="0.5" stroke-dasharray="28.274333882308138 28.274333882308138" stroke-linecap="round">
-                        <animateTransform
-                            attributeName="transform"
-                            type="rotate"
-                            from="0 20 20"
-                            to="360 20 20"
-                            dur="1s"
-                            repeatCount="indefinite"/>
-                    </circle>
-                </svg>
-            </div>
-            <script>
-                const vscode = acquireVsCodeApi();
-                const chatContainer = document.getElementById('chat-container');
-                const userInput = document.getElementById('userInput');
-                const sendButton = document.getElementById('sendButton');
-                const loading = document.getElementById('loading');
-    
-                vscode.postMessage({ type: 'viewReady' });
-    
-                function sendMessage() {
-                    const message = userInput.value.trim();
-                    if (message) {
-                        loading.style.display = 'block'; // Mostrar el indicador de carga
-                        vscode.postMessage({
-                            type: 'userInput',
-                            value: message
-                        });
-                        userInput.value = '';
-                    }
-                }
-    
-                sendButton.addEventListener('click', sendMessage);
-                userInput.addEventListener('keypress', function(event) {
-                    if (event.key === 'Enter') {
-                        sendMessage();
-                    }
-                });
-    
-                function addMessageToUI(message, sender) {
-                    loading.style.display = 'none'; // Ocultar el indicador de carga
-                    const messageElement = document.createElement('div');
-                    messageElement.classList.add('message', sender);
-                    messageElement.textContent = message;
-                    chatContainer.appendChild(messageElement);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-    
-                window.addEventListener('message', event => {
-                    const message = event.data;
-                    switch (message.type) {
-                        case 'addMessage':
-                            addMessageToUI(message.value, message.sender);
-                            break;
-                    }
-                });
-            </script>
-        </body>
-        </html>`;
-    }    
+        const htmlPath = path.join(this._extensionUri.fsPath, 'media', 'index.html');
+        return fs.readFileSync(htmlPath, 'utf8');
+    }   
 }
 
 function deactivate() {
