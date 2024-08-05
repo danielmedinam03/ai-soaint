@@ -93,9 +93,18 @@ class ChatViewProvider {
         }
     }
 
+    // _addMessage(message) {
+    //     const format = this._determineFormat(message.value);
+    //     const formattedMessage = this._formatMessage(message.value, format);
+    //     const messageWithFormat = { ...message, value: formattedMessage };
+    //     this._messages.push(messageWithFormat);
+    //     this._view.webview.postMessage(messageWithFormat);
+    // }
     _addMessage(message) {
-        this._messages.push(message);
-        this._view.webview.postMessage(message);
+        const formattedMessage = this._applyFormats(message.value);
+        const messageWithFormat = { ...message, value: formattedMessage };
+        this._messages.push(messageWithFormat);
+        this._view.webview.postMessage(messageWithFormat);
     }
 
     async _getCurrentFileContent() {
@@ -111,8 +120,69 @@ class ChatViewProvider {
 
     _getHtmlForWebview(webview) {
         const htmlPath = path.join(this._extensionUri.fsPath, 'media', 'index.html');
-        return fs.readFileSync(htmlPath, 'utf8');
-    }   
+        let html = fs.readFileSync(htmlPath, 'utf8');
+        
+        return html;
+    }    
+
+    _determineFormat(message) {
+        if (message.includes('**')) {
+            return 'bold';
+        } 
+        if (message.match(/^\d+\.\s/)) {
+            return 'numbered-list';
+        } 
+        if (message.includes('```')) {
+            return 'code-block';
+        } 
+        if (message.includes('`')) {
+            return 'inline-code';
+        }
+        // Añadir más condiciones para otros formatos si es necesario
+        return 'plain';
+    }
+
+    _formatMessage(message, format) {
+        switch (format) {
+            case 'bold':
+                return message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            case 'numbered-list':
+                return `<ol>${message.split('\n').map(line => `<li>${line.replace(/^\d+\.\s/, '')}</li>`).join('')}</ol>`;
+            case 'code-block':
+                return message.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+            case 'inline-code':
+                return message.replace(/`(.*?)`/g, '<code>$1</code>');
+            // Añadir más formatos si es necesario
+            default:
+                return message;
+        }
+    }
+
+    _applyFormats(message) {
+        // Aplicar negritas
+        message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Aplicar bloques de código
+        message = message.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        // Aplicar código en línea
+        message = message.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Aplicar listas numeradas
+        // if (message.match(/^\d+\.\s/gm)) {
+        //     message = message.split('\n').map(line => {
+        //         if (line.match(/^\d+\.\s/)) {
+        //             return `<li>${line.replace(/^\d+\.\s/, '')}</li>`;
+        //         }
+        //         return line;
+        //     }).join('');
+        //     message = `<ol>${message}</ol>`;
+        // }
+        if (message.match(/^\d+\.\s/)) {
+            message = `<ol>${message.split('\n').map(line => `<li>${line.replace(/^\d+\.\s/, '')}</li>`).join('')}</ol>`;
+        }
+        // Preservar saltos de línea
+        message = message.replace(/\n/g, '<br>');
+
+        return message;
+    }
 }
 
 function deactivate() {
