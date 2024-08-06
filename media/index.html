@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/darcula.min.css">
     <style>
         body {
             font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
@@ -53,9 +54,6 @@
             overflow: auto;
             position: relative;
         }
-        pre.code-block {
-            border: 1px solid #444;
-        }
         pre code {
             display: block;
             font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
@@ -87,7 +85,7 @@
             font-size: var(--vscode-font-size);
             background-color: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
+            border: 1px solid var (--vscode-input-border);
             border-radius: 5px;
             outline: none;
             box-sizing: border-box;
@@ -150,6 +148,7 @@
             </circle>
         </svg>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
     <script>
 
         const vscode = acquireVsCodeApi();

@@ -166,15 +166,7 @@ class ChatViewProvider {
         // Aplicar código en línea
         message = message.replace(/`([^`]+)`/g, '<code>$1</code>');
         // Aplicar listas numeradas
-        // if (message.match(/^\d+\.\s/gm)) {
-        //     message = message.split('\n').map(line => {
-        //         if (line.match(/^\d+\.\s/)) {
-        //             return `<li>${line.replace(/^\d+\.\s/, '')}</li>`;
-        //         }
-        //         return line;
-        //     }).join('');
-        //     message = `<ol>${message}</ol>`;
-        // }
+        
         if (message.match(/^\d+\.\s/)) {
             message = `<ol>${message.split('\n').map(line => `<li>${line.replace(/^\d+\.\s/, '')}</li>`).join('')}</ol>`;
         }
