@@ -161,12 +161,11 @@ class ChatViewProvider {
     _applyFormats(message) {
         // Aplicar negritas
         message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Aplicar bloques de código
-        message = message.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        // Aplicar bloques de código y añadir botón "Copiar"
+        message = message.replace(/```([\s\S]*?)```/g, '<div class="code-block"><pre><code>$1</code></pre><button>Copiar</button></div>');
         // Aplicar código en línea
         message = message.replace(/`([^`]+)`/g, '<code>$1</code>');
         // Aplicar listas numeradas
-        
         if (message.match(/^\d+\.\s/)) {
             message = `<ol>${message.split('\n').map(line => `<li>${line.replace(/^\d+\.\s/, '')}</li>`).join('')}</ol>`;
         }
@@ -175,6 +174,7 @@ class ChatViewProvider {
 
         return message;
     }
+
 }
 
 function deactivate() {

@@ -42,7 +42,7 @@
         .bot {
             align-self: flex-start;
             background-color: var(--vscode-editor-inactiveSelectionBackground);
-            color: var(--vscode-editor-foreground);
+            color: var (--vscode-editor-foreground);
         }
         pre {
             background-color: #2d2d2d;
@@ -57,6 +57,9 @@
         pre code {
             display: block;
             font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
+        }
+        .code-block {
+            position: relative;
         }
         .code-block button {
             position: absolute;
@@ -85,7 +88,7 @@
             font-size: var(--vscode-font-size);
             background-color: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
-            border: 1px solid var (--vscode-input-border);
+            border: 1px solid var(--vscode-input-border);
             border-radius: 5px;
             outline: none;
             box-sizing: border-box;
@@ -115,7 +118,6 @@
         @keyframes rotate {
             100% { transform: rotate(360deg); }
         }
-
         @media (max-width: 600px) {
             .message {
                 max-width: 90%;
@@ -185,6 +187,20 @@
             messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
             chatContainer.appendChild(messageElement);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Agregar evento de clic para los botones "Copiar"
+            const copyButtons = messageElement.querySelectorAll('.code-block button');
+            copyButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const codeBlock = button.previousElementSibling;
+                    const codeContent = codeBlock.innerText;
+                    navigator.clipboard.writeText(codeContent).then(() => {
+                        console.log('Texto copiado al portapapeles');
+                    }).catch(err => {
+                        console.error('Error al copiar el texto: ', err);
+                    });
+                });
+            });
         }
 
         window.addEventListener('message', event => {
