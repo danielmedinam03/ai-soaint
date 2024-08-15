@@ -42,7 +42,7 @@
         .bot {
             align-self: flex-start;
             background-color: var(--vscode-editor-inactiveSelectionBackground);
-            color: var (--vscode-editor-foreground);
+            color: var(--vscode-editor-foreground);
         }
         pre {
             background-color: #2d2d2d;
@@ -57,6 +57,11 @@
         pre code {
             display: block;
             font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
+            font-style: normal; /* Bloques de código en estilo normal */
+        }
+        code {
+            font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
+            font-style: italic; /* Código en línea en cursiva */
         }
         .code-block {
             position: relative;
