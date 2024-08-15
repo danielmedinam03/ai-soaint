@@ -34,6 +34,7 @@ async function resetConversation() {
         vscode.window.showErrorMessage('No se pudo resetear la conversación.');
     }
 }
+
 function getWorkspaceFolder() {
     if (vscode.workspace.workspaceFolders) {
         const workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
@@ -76,10 +77,10 @@ async function activate(context) {
     const workspaceFolder = getWorkspaceFolder();
     if (workspaceFolder) {
         console.log('Proyecto abierto en:', workspaceFolder);
-        
-        // Obtener los archivos del proyecto excluyendo carpetas no deseadas
-        const projectFiles = getProjectFiles(workspaceFolder);
-        
+
+        // Obtener los archivos del proyecto excluyendo carpetas no deseadas y enviar el contenido por lotes de 10
+        await sendProjectFilesInBatches();
+
     } else {
         console.log('No hay ningún proyecto abierto.');
     }
@@ -96,6 +97,50 @@ async function activate(context) {
     });
 
     context.subscriptions.push(disposable);
+}
+
+async function sendProjectFilesInBatches() {
+    const workspaceFolder = getWorkspaceFolder();
+    if (!workspaceFolder) {
+        return;
+    }
+
+    const files = getProjectFiles(workspaceFolder);
+
+    let batchContent = '';
+    let batchCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        try {
+            const content = fs.readFileSync(file, 'utf8');
+            batchContent += `\n\n---\n\n${path.basename(file)}:\n\n${content}`;
+        } catch (error) {
+            console.error(`Failed to read file ${file}:`, error.message);
+        }
+
+        // Incrementa el contador de archivos en el lote
+        batchCount++;
+
+        // Si el lote tiene 10 archivos o si es el último archivo, envía el lote
+        if (batchCount === 10 || i === files.length - 1) {
+            const payload = {
+                text: `Aprende acerca del contexto del proyecto`,
+                context: batchContent
+            };
+            try {
+                const response = await axios.post('http://127.0.0.1:5000/chat', payload);
+                console.log('Batch sent:', response.data.response || JSON.stringify(response.data, null, 2));
+            } catch (error) {
+                console.error('Failed to send batch:', error.message);
+            }
+
+            // Reinicia el contenido del lote y el contador de archivos
+            batchContent = '';
+            batchCount = 0;
+        }
+    }
 }
 
 class ChatViewProvider {
@@ -137,66 +182,6 @@ class ChatViewProvider {
        });
     }
 
-    async _getFilesContentByNames(namesList) {
-        const workspaceFolder = getWorkspaceFolder();
-        if (!workspaceFolder) {
-            return null;
-        }
-    
-        const files = getProjectFiles(workspaceFolder);
-    
-        let batchContent = '';
-        let batchCount = 0;
-    
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-    
-            try {
-                const content = fs.readFileSync(file, 'utf8');
-                batchContent += `\n\n---\n\n${path.basename(file)}:\n\n${content}`;
-            } catch (error) {
-                console.error(`Failed to read file ${file}:`, error.message);
-            }
-    
-            // Incrementa el contador de archivos en el lote
-            batchCount++;
-    
-            // Si el lote tiene 10 archivos o si es el último archivo, envía el lote
-            if (batchCount === 10 || i === files.length - 1) {
-                const payload = {
-                    text: `Aprende acerca del contexto del proyecto`,
-                    context: batchContent
-                };
-                try {
-                    const response = await axios.post('http://127.0.0.1:5000/chat', payload);
-                    console.log('Batch sent:', response.data.response || JSON.stringify(response.data, null, 2));
-                } catch (error) {
-                    console.error('Failed to send batch:', error.message);
-                }
-    
-                // Reinicia el contenido del lote y el contador de archivos
-                batchContent = '';
-                batchCount = 0;
-            }
-        }
-    
-        return null;  // No retorna el contenido combinado porque ya se envió en lotes
-    }   
-
-    async _getNameFilesByContent(currentFileContent){
-
-        const input = `Identifica los archivos relacionados, ya sean herencia, implementaciones, instancias, variables,
-            y archivos relacionados de los relacionados, unicamente los nombres, separados por coma`;
-        const payload = {
-            text: input,
-            context: currentFileContent ? JSON.stringify(currentFileContent) : ''
-        };
-        const response = await axios.post('http://127.0.0.1:5000/chat', payload);
-        const botMessage = { type: 'addMessage', value: response.data.response || JSON.stringify(response.data, null, 2), sender: 'bot' };
-
-        return botMessage;
-    }
-
     async _handleUserInput(input) {
         console.log('Handling user input', input);
         const userMessage = { type: 'addMessage', value: input, sender: 'user' };
@@ -204,21 +189,10 @@ class ChatViewProvider {
 
         try {
             const currentFileContent = await this._getCurrentFileContent();
-            // const nameList = await this._getNameFilesByContent(currentFileContent.content);
 
-            const filesContent = await this._getFilesContentByNames();
-            
-            // Aqui es donde debe ir la logica, que use el mismo endpoint de chat, el cual identifique los nombres
-            // de los archivos relacionados, para luego, crear un metodo, que extraiga el contenido de cada
-            // uno de esos archivos y poder enviar todo por contexto
-
-            // const payload = {
-            //     text: input,
-            //     context: currentFileContent ? JSON.stringify(currentFileContent) : ''
-            // };
             const payload = {
                 text: input,
-                context: filesContent
+                context: currentFileContent
             };
             const response = await axios.post('http://127.0.0.1:5000/chat', payload);
             const botMessage = { type: 'addMessage', value: response.data.response || JSON.stringify(response.data, null, 2), sender: 'bot' };
@@ -270,7 +244,6 @@ class ChatViewProvider {
 
         return message;
     }
-
 }
 
 function deactivate() {
