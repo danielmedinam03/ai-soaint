@@ -201,7 +201,7 @@
             copyButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const codeBlock = button.previousElementSibling;
-                    const codeContent = codeBlock.innerText;
+                    const codeContent = codeBlock.innerText.slice(6);
                     navigator.clipboard.writeText(codeContent).then(() => {
                         console.log('Texto copiado al portapapeles');
                     }).catch(err => {
