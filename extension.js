@@ -181,18 +181,23 @@ class ChatViewProvider {
            this._view.webview.postMessage(message);
        });
     }
-
     async _handleUserInput(input) {
         console.log('Handling user input', input);
         const userMessage = { type: 'addMessage', value: input, sender: 'user' };
         this._addMessage(userMessage);
-
+    
         try {
             const currentFileContent = await this._getCurrentFileContent();
-
+    
+            // Obtener los archivos relacionados
+            const relatedFilesList = await this._sendRelatedFilesRequest(currentFileContent);
+    
+            // Obtener el contexto combinado de los archivos actuales y relacionados
+            const combinedContext = await this._getCombinedContextWithRelatedFiles(currentFileContent, relatedFilesList);
+    
             const payload = {
                 text: input,
-                context: currentFileContent
+                context: combinedContext
             };
             const response = await axios.post('http://127.0.0.1:5000/chat', payload);
             const botMessage = { type: 'addMessage', value: response.data.response || JSON.stringify(response.data, null, 2), sender: 'bot' };
@@ -202,6 +207,7 @@ class ChatViewProvider {
             this._addMessage(errorMessage);
         }
     }
+    
 
     _addMessage(message) {
         const formattedMessage = this._applyFormats(message.value);
@@ -209,6 +215,39 @@ class ChatViewProvider {
         this._messages.push(messageWithFormat);
         this._view.webview.postMessage(messageWithFormat);
     }
+
+    async _getCombinedContextWithRelatedFiles(currentFileContent, relatedFilesList) {
+        // Asegurarte de que relatedFilesList es un array y obtener el primer elemento
+        const relatedFilesString = Array.isArray(relatedFilesList) ? relatedFilesList[0] : relatedFilesList;
+
+        let relatedFilesContent = '';
+        
+        // Convertir la cadena de archivos relacionados en una lista
+        const relatedFilesArray = relatedFilesString.split(',').map(file => file.trim());
+        
+        const workspaceFolder = getWorkspaceFolder();
+        if (workspaceFolder) {
+            const projectFiles = getProjectFiles(workspaceFolder);
+            
+            relatedFilesArray.forEach((relatedFile) => {
+                const relatedFilePath = projectFiles.find(filePath => filePath.endsWith(relatedFile));
+                if (relatedFilePath) {
+                    try {
+                        const content = fs.readFileSync(relatedFilePath, 'utf8');
+                        relatedFilesContent += `\n\n[Inicio del archivo "${relatedFile}"]\n${content}\n[Fin del archivo "${relatedFile}"]`;
+                    } catch (error) {
+                        console.error(`Failed to read related file ${relatedFile}:`, error.message);
+                    }
+                }
+            });
+        }
+    
+        const combinedContext = `[Inicio del archivo "${currentFileContent.file}"]\n${currentFileContent.content}\n[Fin del archivo "${currentFileContent.file}"]\n\nArchivos relacionados:\n${relatedFilesContent}`;
+        return combinedContext;
+    }
+    
+    
+    
 
     async _getCurrentFileContent() {
         const editor = vscode.window.activeTextEditor;
@@ -221,6 +260,17 @@ class ChatViewProvider {
         return null;
     }
 
+    async _sendRelatedFilesRequest(fileContent) {
+        try {
+            const payload = { file_content: fileContent.content };
+            const response = await axios.post('http://127.0.0.1:5000/related-files', payload);
+            return response.data.related_files || [];
+        } catch (error) {
+            console.error('Failed to get related files:', error.message);
+            return [];
+        }
+    }
+
     _getHtmlForWebview(webview) {
         const htmlPath = path.join(this._extensionUri.fsPath, 'media', 'index.html');
         let html = fs.readFileSync(htmlPath, 'utf8');
@@ -229,6 +279,8 @@ class ChatViewProvider {
     }    
 
     _applyFormats(message) {
+        // Escapar caracteres especiales de HTML
+        message = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         // Aplicar negritas
         message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Aplicar bloques de código y añadir botón "Copiar"
