@@ -77,6 +77,24 @@
             padding: 5px;
             cursor: pointer;
         }
+        .code-block button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            padding: 5px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .code-block .copy-button {
+            right: 70px; /* Ajusta esto según sea necesario para el espaciado */
+        }
+        .code-block .insert-button {
+            right: 10px;
+        }
         .code-block button:hover {
             background: #555;
         }
@@ -196,18 +214,35 @@
             chatContainer.appendChild(messageElement);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Agregar evento de clic para los botones "Copiar"
-            const copyButtons = messageElement.querySelectorAll('.code-block button');
-            copyButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const codeBlock = button.previousElementSibling;
-                    const codeContent = codeBlock.innerText.slice(6);
+            // Agregar eventos de clic para los botones en los bloques de código
+            const codeBlocks = messageElement.querySelectorAll('.code-block');
+            codeBlocks.forEach(codeBlock => {
+                const preElement = codeBlock.querySelector('pre');
+                const copyButton = document.createElement('button');
+                copyButton.textContent = 'Copiar';
+                copyButton.classList.add('copy-button');
+                const insertButton = document.createElement('button');
+                insertButton.textContent = 'Insertar';
+                insertButton.classList.add('insert-button');
+
+                copyButton.addEventListener('click', () => {
+                    const codeContent = preElement.innerText;
                     navigator.clipboard.writeText(codeContent).then(() => {
                         console.log('Texto copiado al portapapeles');
                     }).catch(err => {
                         console.error('Error al copiar el texto: ', err);
                     });
                 });
+
+                insertButton.addEventListener('click', () => {
+                    console.log('Botón Nuevo clickeado');
+                    // Agrega aquí la funcionalidad para el nuevo botón
+                    const codeContent = preElement.innerText;
+                    vscode.postMessage({ type: 'insertCode', value: codeContent });
+                });
+
+                codeBlock.appendChild(copyButton);
+                codeBlock.appendChild(insertButton);
             });
         }
 

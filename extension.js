@@ -131,7 +131,6 @@ async function sendProjectFilesInBatches() {
             };
             try {
                 const response = await axios.post('http://127.0.0.1:5000/chat', payload);
-                console.log('Batch sent:', response.data.response || JSON.stringify(response.data, null, 2));
             } catch (error) {
                 console.error('Failed to send batch:', error.message);
             }
@@ -166,17 +165,22 @@ class ChatViewProvider {
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
         webviewView.webview.onDidReceiveMessage(message => {
-            if (message.type === 'viewReady') {
-                console.log('View ready, restoring messages');
-                this._restoreMessages();
-            } else if (message.type === 'userInput') {
-                this._handleUserInput(message.value);
+            switch (message.type) {
+                case 'viewReady':
+                    console.log('View ready, restoring messages');
+                    this._restoreMessages();
+                    break;
+                case 'userInput':
+                    this._handleUserInput(message.value);
+                    break;
+                case 'insertCode':
+                    this._insertCodeAtCursor(message.value);
+                    break;
             }
         });
     }
 
     _restoreMessages() {
-       console.log('Restoring messages', this._messages);
        this._messages.forEach(message => {
            this._view.webview.postMessage(message);
        });
@@ -221,9 +225,8 @@ class ChatViewProvider {
         const relatedFilesString = Array.isArray(relatedFilesList) ? relatedFilesList[0] : relatedFilesList;
 
         let relatedFilesContent = '';
-        
-        // Convertir la cadena de archivos relacionados en una lista
-        const relatedFilesArray = relatedFilesString.split(',').map(file => file.trim());
+        if(relatedFilesString){
+            const relatedFilesArray = relatedFilesString.split(',').map(file => file.trim());
         
         const workspaceFolder = getWorkspaceFolder();
         if (workspaceFolder) {
@@ -241,8 +244,13 @@ class ChatViewProvider {
                 }
             });
         }
-    
-        const combinedContext = `[Inicio del archivo "${currentFileContent.file}"]\n${currentFileContent.content}\n[Fin del archivo "${currentFileContent.file}"]\n\nArchivos relacionados:\n${relatedFilesContent}`;
+        }
+        // Convertir la cadena de archivos relacionados en una lista
+        let combinedContext = '';
+        if(currentFileContent){
+            combinedContext = `[Inicio del archivo "${currentFileContent.file}"]\n${currentFileContent.content}\n[Fin del archivo "${currentFileContent.file}"]\n\nArchivos relacionados:\n${relatedFilesContent}`;
+        }
+        
         return combinedContext;
     }
     
@@ -295,6 +303,18 @@ class ChatViewProvider {
         message = message.replace(/\n/g, '<br>');
 
         return message;
+    }
+    _insertCodeAtCursor(code) {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const document = editor.document;
+            const selection = editor.selection;
+            editor.edit(editBuilder => {
+                editBuilder.insert(selection.active, code);
+            });
+        } else {
+            vscode.window.showErrorMessage('No hay un editor activo para insertar el código.');
+        }
     }
 }
 
