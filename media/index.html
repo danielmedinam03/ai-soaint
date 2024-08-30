@@ -130,14 +130,14 @@
         #sendButton:hover {
             background-color: var(--vscode-button-hoverBackground);
         }
-        #loading {
+        /* #loading {
             display: none;
             align-self: center;
             margin: 20px 0;
         }
         #loading svg {
             animation: rotate 1s linear infinite;
-        }
+        } */
         @keyframes rotate {
             100% { transform: rotate(360deg); }
         }
@@ -163,7 +163,7 @@
         <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
         <button id="sendButton">Enviar</button>
     </div>
-    <div id="loading">
+    <!-- <div id="loading">
         <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" fill="#007acc">
             <circle cx="20" cy="20" r="18" stroke-width="4" stroke-opacity="0.5" stroke-dasharray="28.274333882308138 28.274333882308138" stroke-linecap="round">
                 <animateTransform
@@ -175,7 +175,7 @@
                     repeatCount="indefinite"/>
             </circle>
         </svg>
-    </div>
+    </div> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
     <script>
 
@@ -183,14 +183,14 @@
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
-        const loading = document.getElementById('loading');
+        // const loading = document.getElementById('loading');
 
         vscode.postMessage({ type: 'viewReady' });
 
         function sendMessage() {
             const message = userInput.value.trim();
             if (message) {
-                loading.style.display = 'block';
+                // loading.style.display = 'block';
                 vscode.postMessage({
                     type: 'userInput',
                     value: message
@@ -207,7 +207,7 @@
         });
 
         function addMessageToUI(message, sender) {
-            loading.style.display = 'none';
+            // loading.style.display = 'none';
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', sender);
             messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
