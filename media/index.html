@@ -44,58 +44,78 @@
             background-color: var(--vscode-editor-inactiveSelectionBackground);
             color: var(--vscode-editor-foreground);
         }
+        /* Mejora de bloques de código */
         pre {
-            background-color: #2d2d2d;
-            color: #f8f8f2;
+            background-color: #2d2d2d; /* Fondo oscuro para mejor contraste */
+            color: #f8f8f2; /* Texto claro para mejor legibilidad */
             padding: 10px;
             border-radius: 5px;
-            white-space: pre-wrap;
+            white-space: pre-wrap; /* Mantiene la estructura del código */
             word-wrap: break-word;
-            overflow: auto;
+            overflow-x: auto; /* Permite desplazamiento horizontal si es necesario */
             position: relative;
+            font-size: 0.85rem; /* Tamaño de fuente apropiado para código */
+            margin: 0; /* Elimina márgenes para que el encabezado ajuste correctamente */
+            border-top: none; /* Elimina el borde superior para que se fusione con el encabezado */
+            border-radius: 0 0 5px 5px; /* Solo redondea las esquinas inferiores */
         }
         pre code {
             display: block;
-            font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
-            font-style: normal; /* Bloques de código en estilo normal */
+            font-family: 'Courier New', Courier, monospace; /* Fuente monoespaciada para código */
+            line-height: 1.5; /* Espaciado de línea para mejorar la legibilidad */
         }
         code {
             font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
             font-style: italic; /* Código en línea en cursiva */
         }
-        .code-block {
-            position: relative;
-        }
-        .code-block button {
+        /* Estilo para botones en bloques de código */
+        .code-block .copy-button .insert-button {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #444;
+            top: 5px; /* Ajustar la posición vertical */
+            right: 5px; /* Ajustar la posición horizontal */
+            background: rgba(0, 0, 0, 0.6); /* Semi-transparente para menos intrusividad */
             color: #fff;
             border: none;
             border-radius: 3px;
-            padding: 5px;
+            padding: 5px 10px; /* Ajustar padding para hacer los botones más clicables */
             cursor: pointer;
-        }
-        .code-block button {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #444;
-            color: #fff;
-            border: none;
-            border-radius: 3px;
-            padding: 5px;
-            cursor: pointer;
-            margin-left: 5px;
+            font-size: 0.75rem; /* Tamaño de fuente para los botones */
+            z-index: 10; /* Asegura que los botones estén sobre el texto */
         }
         .code-block .copy-button {
-            right: 70px; /* Ajusta esto según sea necesario para el espaciado */
+            right: 70px; 
         }
         .code-block .insert-button {
             right: 10px;
         }
-        .code-block button:hover {
+        .code-header {
+            display: flex;
+            align-items: center;
+            padding: 5px 10px; /* Ajusta el padding para el encabezado */
+            background: #2d2d2d; /* Fondo oscuro para el encabezado */
+            border-top-left-radius: 5px; /* Redondea las esquinas superiores */
+            border-top-right-radius: 5px;
+        }
+
+        .code-language {
+            color: #ccc;
+            background-color: #333;
+            padding: 5px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-right: 10px; /* Espacio entre el nombre del lenguaje y los botones */
+        }
+        .copy-button, .insert-button {
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            margin-left: 5px; /* Espacio entre botones */
+            display: flex;
+        }
+        .copy-button:hover, .insert-button:hover {
             background: #555;
         }
         #input-container {
@@ -130,14 +150,7 @@
         #sendButton:hover {
             background-color: var(--vscode-button-hoverBackground);
         }
-        /* #loading {
-            display: none;
-            align-self: center;
-            margin: 20px 0;
-        }
-        #loading svg {
-            animation: rotate 1s linear infinite;
-        } */
+        
         @keyframes rotate {
             100% { transform: rotate(360deg); }
         }
@@ -151,6 +164,9 @@
             #userInput {
                 padding: 8px;
             }
+            pre {
+                font-size: 0.75rem; /* Tamaño de fuente más pequeño para dispositivos pequeños */
+            }
         }
         #line-cone {
             font-style: italic;
@@ -163,19 +179,6 @@
         <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
         <button id="sendButton">Enviar</button>
     </div>
-    <!-- <div id="loading">
-        <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" fill="#007acc">
-            <circle cx="20" cy="20" r="18" stroke-width="4" stroke-opacity="0.5" stroke-dasharray="28.274333882308138 28.274333882308138" stroke-linecap="round">
-                <animateTransform
-                    attributeName="transform"
-                    type="rotate"
-                    from="0 20 20"
-                    to="360 20 20"
-                    dur="1s"
-                    repeatCount="indefinite"/>
-            </circle>
-        </svg>
-    </div> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
     <script>
 
@@ -183,7 +186,6 @@
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
-        // const loading = document.getElementById('loading');
 
         vscode.postMessage({ type: 'viewReady' });
 
@@ -207,17 +209,31 @@
         });
 
         function addMessageToUI(message, sender) {
-            // loading.style.display = 'none';
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', sender);
             messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
             chatContainer.appendChild(messageElement);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Agregar eventos de clic para los botones en los bloques de código
             const codeBlocks = messageElement.querySelectorAll('.code-block');
             codeBlocks.forEach(codeBlock => {
                 const preElement = codeBlock.querySelector('pre');
+                const codeContent = preElement.innerText;
+                const lines = codeContent.split('\n');
+                const languageLabel = lines[0]; // Primera línea que contiene el nombre del lenguaje
+                const restOfCode = lines.slice(1).join('\n'); // El resto del código
+
+                // Crear un contenedor para el nombre del lenguaje y los botones
+                const headerContainer = document.createElement('div');
+                headerContainer.classList.add('code-header');
+
+                const languageLabelDiv = document.createElement('div');
+                languageLabelDiv.textContent = languageLabel;
+                languageLabelDiv.classList.add('code-language');
+
+                const buttonContainer = document.createElement('div'); // Contenedor para los botones
+                buttonContainer.classList.add('button-container');
+
                 const copyButton = document.createElement('button');
                 copyButton.textContent = 'Copiar';
                 copyButton.classList.add('copy-button');
@@ -226,8 +242,7 @@
                 insertButton.classList.add('insert-button');
 
                 copyButton.addEventListener('click', () => {
-                    const codeContent = preElement.innerText;
-                    navigator.clipboard.writeText(codeContent).then(() => {
+                    navigator.clipboard.writeText(restOfCode).then(() => {
                         console.log('Texto copiado al portapapeles');
                     }).catch(err => {
                         console.error('Error al copiar el texto: ', err);
@@ -235,14 +250,24 @@
                 });
 
                 insertButton.addEventListener('click', () => {
-                    console.log('Botón Nuevo clickeado');
-                    // Agrega aquí la funcionalidad para el nuevo botón
-                    const codeContent = preElement.innerText;
-                    vscode.postMessage({ type: 'insertCode', value: codeContent });
+                    vscode.postMessage({ type: 'insertCode', value: restOfCode });
                 });
 
-                codeBlock.appendChild(copyButton);
-                codeBlock.appendChild(insertButton);
+                // Añadir el nombre del lenguaje y los botones al contenedor
+                headerContainer.appendChild(languageLabelDiv);
+                headerContainer.appendChild(copyButton);
+                headerContainer.appendChild(insertButton);
+                headerContainer.appendChild(buttonContainer);
+
+                // Insertar el contenedor en el código antes del <pre>
+                codeBlock.insertBefore(headerContainer, preElement);
+                preElement.textContent = restOfCode;  // Reemplaza el contenido del <pre> con el código sin la primera línea
+
+                // Añadir clase de lenguaje para que highlight.js funcione
+                preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
+
+                // Aplicar resaltado de sintaxis
+                hljs.highlightElement(preElement);
             });
         }
 

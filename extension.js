@@ -254,9 +254,6 @@ class ChatViewProvider {
         return combinedContext;
     }
     
-    
-    
-
     async _getCurrentFileContent() {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
