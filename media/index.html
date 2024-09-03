@@ -91,6 +91,7 @@
         .code-header {
             display: flex;
             align-items: center;
+            justify-content: space-between; /* Alinea los elementos a los lados opuestos */
             padding: 5px 10px; /* Ajusta el padding para el encabezado */
             background: #2d2d2d; /* Fondo oscuro para el encabezado */
             border-top-left-radius: 5px; /* Redondea las esquinas superiores */
@@ -104,6 +105,10 @@
             border-radius: 3px;
             font-weight: bold;
             margin-right: 10px; /* Espacio entre el nombre del lenguaje y los botones */
+        }
+        .button-container {
+            margin-left: auto; /* Empuja el contenedor de botones hacia la derecha */
+            display: flex; /* Flex para alinear los botones en línea */
         }
         .copy-button, .insert-button {
             background: #444;
@@ -209,21 +214,22 @@
         });
 
         function addMessageToUI(message, sender) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message', sender);
-            messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
-            chatContainer.appendChild(messageElement);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', sender);
+        messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
+        chatContainer.appendChild(messageElement);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            const codeBlocks = messageElement.querySelectorAll('.code-block');
-            codeBlocks.forEach(codeBlock => {
-                const preElement = codeBlock.querySelector('pre');
-                const codeContent = preElement.innerText;
-                const lines = codeContent.split('\n');
-                const languageLabel = lines[0]; // Primera línea que contiene el nombre del lenguaje
-                const restOfCode = lines.slice(1).join('\n'); // El resto del código
+        const codeBlocks = messageElement.querySelectorAll('.code-block');
+        codeBlocks.forEach(codeBlock => {
+            const preElement = codeBlock.querySelector('pre');
+            const codeContent = preElement.innerText;
+            const lines = codeContent.split('\n');
+            const languageLabel = lines[0]; // Primera línea que contiene el nombre del lenguaje
+            const restOfCode = lines.slice(1).join('\n'); // El resto del código
 
-                // Crear un contenedor para el nombre del lenguaje y los botones
+            // Verificar si ya existe un encabezado de código
+            if (!codeBlock.querySelector('.code-header')) {
                 const headerContainer = document.createElement('div');
                 headerContainer.classList.add('code-header');
 
@@ -231,12 +237,13 @@
                 languageLabelDiv.textContent = languageLabel;
                 languageLabelDiv.classList.add('code-language');
 
-                const buttonContainer = document.createElement('div'); // Contenedor para los botones
+                const buttonContainer = document.createElement('div');
                 buttonContainer.classList.add('button-container');
 
                 const copyButton = document.createElement('button');
                 copyButton.textContent = 'Copiar';
                 copyButton.classList.add('copy-button');
+
                 const insertButton = document.createElement('button');
                 insertButton.textContent = 'Insertar';
                 insertButton.classList.add('insert-button');
@@ -253,21 +260,18 @@
                     vscode.postMessage({ type: 'insertCode', value: restOfCode });
                 });
 
-                // Añadir el nombre del lenguaje y los botones al contenedor
                 headerContainer.appendChild(languageLabelDiv);
-                headerContainer.appendChild(copyButton);
-                headerContainer.appendChild(insertButton);
+                buttonContainer.appendChild(copyButton);
+                buttonContainer.appendChild(insertButton);
                 headerContainer.appendChild(buttonContainer);
 
-                // Insertar el contenedor en el código antes del <pre>
                 codeBlock.insertBefore(headerContainer, preElement);
-                preElement.textContent = restOfCode;  // Reemplaza el contenido del <pre> con el código sin la primera línea
+            }
+                    
+            preElement.textContent = restOfCode;
+            preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
 
-                // Añadir clase de lenguaje para que highlight.js funcione
-                preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
-
-                // Aplicar resaltado de sintaxis
-                hljs.highlightElement(preElement);
+            hljs.highlightElement(preElement);
             });
         }
 
