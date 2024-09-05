@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/darcula.min.css">
+    <!-- <link href="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet" /> -->
+    <link rel="stylesheet" href="prism/prism.css">
+    <script src="prism/prism.js"></script>
     <style>
         body {
             font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
@@ -46,27 +48,27 @@
         }
         /* Mejora de bloques de código */
         pre {
-            background-color: #2d2d2d; /* Fondo oscuro para mejor contraste */
-            color: #f8f8f2; /* Texto claro para mejor legibilidad */
+            background-color: #2d2d2d; 
+            color: #f8f8f2; 
             padding: 10px;
             border-radius: 5px;
-            white-space: pre-wrap; /* Mantiene la estructura del código */
+            white-space: pre-wrap; 
             word-wrap: break-word;
-            overflow-x: auto; /* Permite desplazamiento horizontal si es necesario */
+            overflow-x: auto; 
             position: relative;
-            font-size: 0.85rem; /* Tamaño de fuente apropiado para código */
-            margin: 0; /* Elimina márgenes para que el encabezado ajuste correctamente */
-            border-top: none; /* Elimina el borde superior para que se fusione con el encabezado */
-            border-radius: 0 0 5px 5px; /* Solo redondea las esquinas inferiores */
+            font-size: 0.85rem; 
+            margin: 0; 
+            border-top: none; 
+            border-radius: 0 0 5px 5px; 
         }
         pre code {
             display: block;
-            font-family: 'Courier New', Courier, monospace; /* Fuente monoespaciada para código */
-            line-height: 1.5; /* Espaciado de línea para mejorar la legibilidad */
+            font-family: 'Courier New', Courier, monospace; 
+            line-height: 1.5; 
         }
         code {
             font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
-            font-style: italic; /* Código en línea en cursiva */
+            font-style: italic; 
         }
         /* Estilo para botones en bloques de código */
         .code-block .copy-button .insert-button {
@@ -170,7 +172,7 @@
                 padding: 8px;
             }
             pre {
-                font-size: 0.75rem; /* Tamaño de fuente más pequeño para dispositivos pequeños */
+                font-size: 0.75rem; 
             }
         }
         #line-cone {
@@ -184,7 +186,6 @@
         <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
         <button id="sendButton">Enviar</button>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
     <script>
 
         const vscode = acquireVsCodeApi();
@@ -220,6 +221,17 @@
         chatContainer.appendChild(messageElement);
         chatContainer.scrollTop = chatContainer.scrollHeight;
 
+        // const codeBlocksdesign = messageElement.querySelectorAll('code');
+        // codeBlocksdesign.forEach(codeBlock => {
+        //     const languageMatch = codeBlock.className.match(/language-(\w+)/);
+        //     const language = languageMatch ? languageMatch[1] : null; 
+        //     if (!language) {
+        //         codeBlock.className = 'language-javascript'; // Asigna JavaScript por defecto
+        //     }
+        //     Prism.highlightElement(codeBlock);
+        // });
+
+
         const codeBlocks = messageElement.querySelectorAll('.code-block');
         codeBlocks.forEach(codeBlock => {
             const preElement = codeBlock.querySelector('pre');
@@ -229,7 +241,9 @@
             const restOfCode = lines.slice(1).join('\n'); // El resto del código
 
             // Verificar si ya existe un encabezado de código
-            if (!codeBlock.querySelector('.code-header')) {
+            let encabezado = codeBlock.querySelector('.code-header');
+
+            if (!encabezado) {
                 const headerContainer = document.createElement('div');
                 headerContainer.classList.add('code-header');
 
@@ -267,11 +281,17 @@
 
                 codeBlock.insertBefore(headerContainer, preElement);
             }
-                    
-            preElement.textContent = restOfCode;
-            preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
+            // Eliminar botones que están fuera del contenedor .code-header
+            const buttonsOutsideHeader = codeBlock.querySelectorAll('button');
+            buttonsOutsideHeader.forEach(button => {
+                if (!button.closest('.code-header')) {
+                    button.remove();
+                }
+            });
 
-            hljs.highlightElement(preElement);
+            preElement.textContent = restOfCode;
+            // preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
+
             });
         }
 
@@ -285,5 +305,7 @@
         });
 
     </script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script> -->
 </body>
 </html>
