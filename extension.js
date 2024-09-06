@@ -79,7 +79,7 @@ async function activate(context) {
         console.log('Proyecto abierto en:', workspaceFolder);
 
         // Obtener los archivos del proyecto excluyendo carpetas no deseadas y enviar el contenido por lotes de 10
-        await sendProjectFilesInBatches();
+        // await sendProjectFilesInBatches(); // Desactivado temporalmente
 
     } else {
         console.log('No hay ningún proyecto abierto.');
@@ -289,9 +289,9 @@ class ChatViewProvider {
         // Aplicar negritas
         message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Aplicar bloques de código y añadir botón "Copiar"
-        message = message.replace(/```([\s\S]*?)```/g, '<div class="code-block"><pre><code class="language-">$1</code></pre><button>Copiar</button></div>');
+        message = message.replace(/```([\s\S]*?)```/g, '<div class="code-block"><pre><code>$1</code></pre></div>');
         // Aplicar código en línea
-        message = message.replace(/`([^`]+)`/g, '<code class="language-">$1</code>');
+        message = message.replace(/`([^`]+)`/g, '<code>$1</code>');
         // Aplicar listas numeradas
         if (message.match(/^\d+\.\s/)) {
             message = `<ol>${message.split('\n').map(line => `<li>${line.replace(/^\d+\.\s/, '')}</li>`).join('')}</ol>`;

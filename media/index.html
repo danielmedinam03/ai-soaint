@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
-    <!-- <link href="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet" /> -->
-    <link rel="stylesheet" href="prism/prism.css">
-    <script src="prism/prism.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
     <style>
         body {
             font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
@@ -52,8 +51,8 @@
             color: #f8f8f2; 
             padding: 10px;
             border-radius: 5px;
-            white-space: pre-wrap; 
-            word-wrap: break-word;
+            /*white-space: pre-wrap;  Mantiene los espacios en blanco y los saltos de línea, pero también permite que las palabras se rompan y pasen a la línea siguiente si es necesario. */
+            /*word-wrap: break-word;  Permite que las palabras largas se rompan y pasen a la línea siguiente para evitar desbordamientos horizontales. */
             overflow-x: auto; 
             position: relative;
             font-size: 0.85rem; 
@@ -71,7 +70,7 @@
             font-style: italic; 
         }
         /* Estilo para botones en bloques de código */
-        .code-block .copy-button .insert-button {
+        .copy-button .insert-button {
             position: absolute;
             top: 5px; /* Ajustar la posición vertical */
             right: 5px; /* Ajustar la posición horizontal */
@@ -84,10 +83,10 @@
             font-size: 0.75rem; /* Tamaño de fuente para los botones */
             z-index: 10; /* Asegura que los botones estén sobre el texto */
         }
-        .code-block .copy-button {
+        .copy-button {
             right: 70px; 
         }
-        .code-block .insert-button {
+        .insert-button {
             right: 10px;
         }
         .code-header {
@@ -182,12 +181,13 @@
 </head>
 <body>
     <div id="chat-container"></div>
+    <pre><code class="language-javascript">const foo = 'bar';</code></pre>
+
     <div id="input-container">
         <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
         <button id="sendButton">Enviar</button>
     </div>
     <script>
-
         const vscode = acquireVsCodeApi();
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('userInput');
@@ -215,86 +215,77 @@
         });
 
         function addMessageToUI(message, sender) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', sender);
-        messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
-        chatContainer.appendChild(messageElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender);
+            messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
 
-        // const codeBlocksdesign = messageElement.querySelectorAll('code');
-        // codeBlocksdesign.forEach(codeBlock => {
-        //     const languageMatch = codeBlock.className.match(/language-(\w+)/);
-        //     const language = languageMatch ? languageMatch[1] : null; 
-        //     if (!language) {
-        //         codeBlock.className = 'language-javascript'; // Asigna JavaScript por defecto
-        //     }
-        //     Prism.highlightElement(codeBlock);
-        // });
+            const codeBlocks = messageElement.querySelectorAll('.code-block');
+            codeBlocks.forEach(codeBlock => {
 
+                const preElement = codeBlock.querySelector('pre');
+                const codeContent = preElement.innerText;
+                const lines = codeContent.split('\n');
+                const languageLabel = lines[0]; // Primera línea que contiene el nombre del lenguaje
+                const restOfCode = lines.slice(1).join('\n'); // El resto del código
 
-        const codeBlocks = messageElement.querySelectorAll('.code-block');
-        codeBlocks.forEach(codeBlock => {
-            const preElement = codeBlock.querySelector('pre');
-            const codeContent = preElement.innerText;
-            const lines = codeContent.split('\n');
-            const languageLabel = lines[0]; // Primera línea que contiene el nombre del lenguaje
-            const restOfCode = lines.slice(1).join('\n'); // El resto del código
+                // Verificar si ya existe un encabezado de código
+                let encabezado = codeBlock.querySelector('.code-header');
 
-            // Verificar si ya existe un encabezado de código
-            let encabezado = codeBlock.querySelector('.code-header');
+                if (!encabezado) {
+                    const headerContainer = document.createElement('div');
+                    headerContainer.classList.add('code-header');
 
-            if (!encabezado) {
-                const headerContainer = document.createElement('div');
-                headerContainer.classList.add('code-header');
+                    const languageLabelDiv = document.createElement('div');
+                    languageLabelDiv.textContent = languageLabel;
+                    languageLabelDiv.classList.add('code-language');
 
-                const languageLabelDiv = document.createElement('div');
-                languageLabelDiv.textContent = languageLabel;
-                languageLabelDiv.classList.add('code-language');
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.classList.add('button-container');
 
-                const buttonContainer = document.createElement('div');
-                buttonContainer.classList.add('button-container');
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = 'Copiar';
+                    copyButton.classList.add('copy-button');
 
-                const copyButton = document.createElement('button');
-                copyButton.textContent = 'Copiar';
-                copyButton.classList.add('copy-button');
+                    const insertButton = document.createElement('button');
+                    insertButton.textContent = 'Insertar';
+                    insertButton.classList.add('insert-button');
 
-                const insertButton = document.createElement('button');
-                insertButton.textContent = 'Insertar';
-                insertButton.classList.add('insert-button');
-
-                copyButton.addEventListener('click', () => {
-                    navigator.clipboard.writeText(restOfCode).then(() => {
-                        console.log('Texto copiado al portapapeles');
-                    }).catch(err => {
-                        console.error('Error al copiar el texto: ', err);
+                    copyButton.addEventListener('click', () => {
+                        navigator.clipboard.writeText(restOfCode).then(() => {
+                            console.log('Texto copiado al portapapeles');
+                        }).catch(err => {
+                            console.error('Error al copiar el texto: ', err);
+                        });
                     });
-                });
 
-                insertButton.addEventListener('click', () => {
-                    vscode.postMessage({ type: 'insertCode', value: restOfCode });
-                });
+                    insertButton.addEventListener('click', () => {
+                        vscode.postMessage({ type: 'insertCode', value: restOfCode });
+                    });
 
-                headerContainer.appendChild(languageLabelDiv);
-                buttonContainer.appendChild(copyButton);
-                buttonContainer.appendChild(insertButton);
-                headerContainer.appendChild(buttonContainer);
+                    headerContainer.appendChild(languageLabelDiv);
+                    buttonContainer.appendChild(copyButton);
+                    buttonContainer.appendChild(insertButton);
+                    headerContainer.appendChild(buttonContainer);
 
-                codeBlock.insertBefore(headerContainer, preElement);
-            }
-            // Eliminar botones que están fuera del contenedor .code-header
-            const buttonsOutsideHeader = codeBlock.querySelectorAll('button');
-            buttonsOutsideHeader.forEach(button => {
-                if (!button.closest('.code-header')) {
-                    button.remove();
+                    codeBlock.insertBefore(headerContainer, preElement);
                 }
-            });
 
-            preElement.textContent = restOfCode;
-            // preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
-
+                preElement.textContent = restOfCode;
+                preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
+                    
+                
             });
+            // const codeBlocksdesign = messageElement.querySelectorAll('pre code');
+            //     // console.log(codeBlocksdesign);
+            // codeBlocksdesign.forEach(codeBlock => {
+            //     codeBlock.className = 'language-csharp';
+            // });
+
+            // Prism.highlightAll();
+
         }
-
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.type) {
@@ -305,7 +296,10 @@
         });
 
     </script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script> -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script> -->
+    <!-- <script src="prism/prism.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script> -->
+
 </body>
 </html>
