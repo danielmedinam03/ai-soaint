@@ -3,190 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat</title>
+    <title>VS Code Theme-Aware Chat Interface</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism-tomorrow.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+     
     <style>
+        :root {
+            --font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+            --font-size: var(--vscode-font-size, 14px);
+            --foreground-color: var(--vscode-foreground);
+            --background-color: var(--vscode-editor-background);
+            --border-color: var(--vscode-editorGroup-border);
+            --button-bg: var(--vscode-button-background);
+            --button-fg: var(--vscode-button-foreground);
+            --button-hover-bg: var(--vscode-button-hoverBackground);
+            --input-bg: var(--vscode-input-background);
+            --input-fg: var(--vscode-input-foreground);
+            --input-border: var(--vscode-input-border);
+            --code-bg: var(--vscode-editor-background);
+            --code-fg: var(--vscode-editor-foreground);
+        }
+
         body {
-            font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
-            font-size: var(--vscode-font-size, 14px);
-            color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 0;
+            font-family: var(--font-family);
+            font-size: var(--font-size);
+            color: var(--foreground-color);
+            background-color: var(--background-color);
             margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
         }
+
         #chat-container {
-            display: flex;
-            flex-direction: column;
             flex-grow: 1;
             overflow-y: auto;
-            padding: 10px;
-            border-bottom: 1px solid var(--vscode-editorGroup-border);
-            background-color: var(--vscode-editor-background);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
         }
+
         .message {
-            margin-bottom: 10px;
-            padding: 8px 12px;
-            border-radius: 8px;
             max-width: 75%;
-            word-wrap: break-word;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: 1rem;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .user {
             align-self: flex-end;
             background-color: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
         }
+
         .bot {
             align-self: flex-start;
             background-color: var(--vscode-editor-inactiveSelectionBackground);
             color: var(--vscode-editor-foreground);
         }
-        /* Mejora de bloques de código */
-        pre {
-            background-color: #2d2d2d; 
-            color: #f8f8f2; 
-            padding: 10px;
-            border-radius: 5px;
-            /*white-space: pre-wrap;  Mantiene los espacios en blanco y los saltos de línea, pero también permite que las palabras se rompan y pasen a la línea siguiente si es necesario. */
-            /*word-wrap: break-word;  Permite que las palabras largas se rompan y pasen a la línea siguiente para evitar desbordamientos horizontales. */
-            overflow-x: auto; 
-            position: relative;
-            font-size: 0.85rem; 
-            margin: 0; 
-            border-top: none; 
-            border-radius: 0 0 5px 5px; 
+
+        .code-block {
+            background-color: var(--code-bg);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            margin: 1rem 0;
         }
-        pre code {
-            display: block;
-            font-family: 'Courier New', Courier, monospace; 
-            line-height: 1.5; 
-        }
-        code {
-            font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
-            font-style: italic; 
-        }
-        /* Estilo para botones en bloques de código */
-        .copy-button .insert-button {
-            position: absolute;
-            top: 5px; /* Ajustar la posición vertical */
-            right: 5px; /* Ajustar la posición horizontal */
-            background: rgba(0, 0, 0, 0.6); /* Semi-transparente para menos intrusividad */
-            color: #fff;
-            border: none;
-            border-radius: 3px;
-            padding: 5px 10px; /* Ajustar padding para hacer los botones más clicables */
-            cursor: pointer;
-            font-size: 0.75rem; /* Tamaño de fuente para los botones */
-            z-index: 10; /* Asegura que los botones estén sobre el texto */
-        }
-        .copy-button {
-            right: 70px; 
-        }
-        .insert-button {
-            right: 10px;
-        }
+
         .code-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: space-between; /* Alinea los elementos a los lados opuestos */
-            padding: 5px 10px; /* Ajusta el padding para el encabezado */
-            background: #2d2d2d; /* Fondo oscuro para el encabezado */
-            border-top-left-radius: 5px; /* Redondea las esquinas superiores */
-            border-top-right-radius: 5px;
+            padding: 0.5rem 1rem;
+            background-color: var(--vscode-editor-lineHighlightBackground);
         }
 
         .code-language {
-            color: #ccc;
-            background-color: #333;
-            padding: 5px 8px;
-            border-radius: 3px;
+            color: var(--vscode-editor-foreground);
             font-weight: bold;
-            margin-right: 10px; /* Espacio entre el nombre del lenguaje y los botones */
         }
-        .button-container {
-            margin-left: auto; /* Empuja el contenedor de botones hacia la derecha */
-            display: flex; /* Flex para alinear los botones en línea */
-        }
-        .copy-button, .insert-button {
-            background: #444;
-            color: #fff;
+
+        .button-container button {
+            background-color: var(--button-bg);
+            color: var(--button-fg);
             border: none;
-            border-radius: 3px;
-            padding: 5px 10px;
+            padding: 0.25rem 0.5rem;
+            margin-left: 0.5rem;
             cursor: pointer;
-            margin-left: 5px; /* Espacio entre botones */
-            display: flex;
+            border-radius: 0.25rem;
         }
-        .copy-button:hover, .insert-button:hover {
-            background: #555;
+
+        .button-container button:hover {
+            background-color: var(--button-hover-bg);
         }
+
+        pre {
+            margin: 0;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
         #input-container {
             display: flex;
-            align-items: center;
-            padding: 10px;
-            background-color: var(--vscode-editor-background);
-            border-top: 1px solid var(--vscode-editorGroup-border);
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
         }
+
         #userInput {
             flex-grow: 1;
-            padding: 10px;
-            font-size: var(--vscode-font-size);
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 5px;
-            outline: none;
-            box-sizing: border-box;
+            padding: 0.5rem;
+            background-color: var(--input-bg);
+            color: var(--input-fg);
+            border: 1px solid var(--input-border);
+            border-radius: 0.25rem;
         }
+
         #sendButton {
-            margin-left: 10px;
-            padding: 10px 20px;
-            font-size: var(--vscode-font-size);
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
+            padding: 0.5rem 1rem;
+            margin-left: 0.5rem;
+            background-color: var(--button-bg);
+            color: var(--button-fg);
             border: none;
-            border-radius: 5px;
+            border-radius: 0.25rem;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
+
         #sendButton:hover {
-            background-color: var(--vscode-button-hoverBackground);
+            background-color: var(--button-hover-bg);
         }
-        
-        @keyframes rotate {
-            100% { transform: rotate(360deg); }
-        }
+
         @media (max-width: 600px) {
-            .message {
-                max-width: 90%;
-            }
-            #sendButton {
-                padding: 8px 16px;
-            }
-            #userInput {
-                padding: 8px;
-            }
-            pre {
-                font-size: 0.75rem; 
-            }
-        }
-        #line-cone {
-            font-style: italic;
+            .message { max-width: 90%; }
+            #userInput, #sendButton { padding: 0.25rem 0.5rem; }
         }
     </style>
 </head>
 <body>
     <div id="chat-container"></div>
-    <pre><code class="language-javascript">const foo = 'bar';</code></pre>
-
     <div id="input-container">
-        <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
-        <button id="sendButton">Enviar</button>
+        <input type="text" id="userInput" placeholder="Type your message here...">
+        <button id="sendButton">Send</button>
     </div>
+
     <script>
         const vscode = acquireVsCodeApi();
         const chatContainer = document.getElementById('chat-container');
@@ -198,108 +157,77 @@
         function sendMessage() {
             const message = userInput.value.trim();
             if (message) {
-                // loading.style.display = 'block';
-                vscode.postMessage({
-                    type: 'userInput',
-                    value: message
-                });
+                vscode.postMessage({ type: 'userInput', value: message });
                 userInput.value = '';
             }
         }
 
         sendButton.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
+        userInput.addEventListener('keypress', event => {
+            if (event.key === 'Enter') sendMessage();
         });
 
         function addMessageToUI(message, sender) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', sender);
-            messageElement.innerHTML = message;  // Usar innerHTML para permitir HTML formateado
+            messageElement.innerHTML = message;
             chatContainer.appendChild(messageElement);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
 
             const codeBlocks = messageElement.querySelectorAll('.code-block');
             codeBlocks.forEach(codeBlock => {
-
                 const preElement = codeBlock.querySelector('pre');
-                const codeContent = preElement.innerText;
-                const lines = codeContent.split('\n');
-                const languageLabel = lines[0]; // Primera línea que contiene el nombre del lenguaje
-                const restOfCode = lines.slice(1).join('\n'); // El resto del código
+                const [languageLabel, ...codeLines] = preElement.innerText.split('\n');
+                const restOfCode = codeLines.join('\n');
 
-                // Verificar si ya existe un encabezado de código
-                let encabezado = codeBlock.querySelector('.code-header');
+                console.log('Language label: ' + languageLabel);
+                console.log('codeLines: ' + codeLines);
+                console.log('restOfCode: ' + restOfCode);
 
-                if (!encabezado) {
-                    const headerContainer = document.createElement('div');
-                    headerContainer.classList.add('code-header');
+                const headerContainer = document.createElement('div');
+                headerContainer.classList.add('code-header');
+                headerContainer.innerHTML = `
+                    <div class="code-language">${languageLabel}</div>
+                    <div class="button-container">
+                        <button class="copy-button">Copiar</button>
+                        <button class="insert-button">Insertar</button>
+                    </div>
+                `;
 
-                    const languageLabelDiv = document.createElement('div');
-                    languageLabelDiv.textContent = languageLabel;
-                    languageLabelDiv.classList.add('code-language');
+                const copyButton = headerContainer.querySelector('.copy-button');
+                const insertButton = headerContainer.querySelector('.insert-button');
 
-                    const buttonContainer = document.createElement('div');
-                    buttonContainer.classList.add('button-container');
+                copyButton.addEventListener('click', () => {
+                    navigator.clipboard.writeText(restOfCode)
+                        .then(() => console.log('Code copied to clipboard'))
+                        .catch(err => console.error('Error copying code: ', err));
+                });
 
-                    const copyButton = document.createElement('button');
-                    copyButton.textContent = 'Copiar';
-                    copyButton.classList.add('copy-button');
+                insertButton.addEventListener('click', () => {
+                    vscode.postMessage({ type: 'insertCode', value: restOfCode });
+                });
 
-                    const insertButton = document.createElement('button');
-                    insertButton.textContent = 'Insertar';
-                    insertButton.classList.add('insert-button');
-
-                    copyButton.addEventListener('click', () => {
-                        navigator.clipboard.writeText(restOfCode).then(() => {
-                            console.log('Texto copiado al portapapeles');
-                        }).catch(err => {
-                            console.error('Error al copiar el texto: ', err);
-                        });
-                    });
-
-                    insertButton.addEventListener('click', () => {
-                        vscode.postMessage({ type: 'insertCode', value: restOfCode });
-                    });
-
-                    headerContainer.appendChild(languageLabelDiv);
-                    buttonContainer.appendChild(copyButton);
-                    buttonContainer.appendChild(insertButton);
-                    headerContainer.appendChild(buttonContainer);
-
-                    codeBlock.insertBefore(headerContainer, preElement);
-                }
-
-                preElement.textContent = restOfCode;
-                preElement.className = `language-${languageLabel.trim().toLowerCase()}`;
-                    
+                codeBlock.insertBefore(headerContainer, preElement);
                 
+                const codeElement = preElement.querySelector('code');
+
+                codeElement.innerHTML = '';
+                
+                // codeElement.classList.add(`language-${languageLabel.trim().toLowerCase()}`);
+
+                codeElement.classList.add(`language-javascript`);
+                codeElement.textContent = restOfCode;
             });
-            // const codeBlocksdesign = messageElement.querySelectorAll('pre code');
-            //     // console.log(codeBlocksdesign);
-            // codeBlocksdesign.forEach(codeBlock => {
-            //     codeBlock.className = 'language-csharp';
-            // });
 
-            // Prism.highlightAll();
-
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            Prism.highlightAll();
         }
+
         window.addEventListener('message', event => {
             const message = event.data;
-            switch (message.type) {
-                case 'addMessage':
-                    addMessageToUI(message.value, message.sender);
-                    break;
+            if (message.type === 'addMessage') {
+                addMessageToUI(message.value, message.sender);
             }
         });
-
     </script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script> -->
-    <!-- <script src="prism/prism.js"></script> -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script> -->
-
 </body>
 </html>
