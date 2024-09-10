@@ -179,10 +179,6 @@
                 const [languageLabel, ...codeLines] = preElement.innerText.split('\n');
                 const restOfCode = codeLines.join('\n');
 
-                console.log('Language label: ' + languageLabel);
-                console.log('codeLines: ' + codeLines);
-                console.log('restOfCode: ' + restOfCode);
-
                 const headerContainer = document.createElement('div');
                 headerContainer.classList.add('code-header');
                 headerContainer.innerHTML = `
