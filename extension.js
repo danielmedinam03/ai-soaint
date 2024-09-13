@@ -79,7 +79,7 @@ async function activate(context) {
         console.log('Proyecto abierto en:', workspaceFolder);
 
         // Obtener los archivos del proyecto excluyendo carpetas no deseadas y enviar el contenido por lotes de 10
-        // await sendProjectFilesInBatches(); // Desactivado temporalmente
+        await sendProjectFilesInBatches(); // Desactivado temporalmente
 
     } else {
         console.log('No hay ningún proyecto abierto.');
